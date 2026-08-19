@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}{% if current_user.role in ['trainer', 'admin'] %}Nutrition Blueprints & Macro Hub{% else %}Nutrition & Meal Plans{% endif %} | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {% if current_user.role == 'trainer' %}
+                    <i class="bi bi-egg-fried text-warning me-2"></i> Trainer Nutrition Blueprint & Consultation Hub
+                {% elif current_user.role == 'admin' %}
+                    <i class="bi bi-shield-lock text-info me-2"></i> Nutrition & Dietary Plan Administration
+                {% else %}
+                    <i class="bi bi-egg-fried text-warning me-2"></i> Interactive Nutrition & Macro Guide
+                {% endif %}
+            </h3>
+            <p class="text-muted small">
+                {% if current_user.role in ['trainer', 'admin'] %}
+                    Publish custom dietary blueprints, calculate client TDEE macros, and consult on evidence-based nutrition.
+                {% else %}
+                    Admin-curated dietary blueprints, daily macro breakdowns, and structured timing schedules tailored to fitness goals.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if current_user.role in ['trainer', 'admin'] %}
+            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createMealPlanModal">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create Blueprint
+            </button>
+            {% endif %}
+
+            <div class="filter-bar py-1 px-3">
+                <span class="text-muted small me-2 fw-semibold">Goal:</span>
+                <a href="{{ url_for('nutrition', goal='ALL') }}" class="filter-btn {% if current_goal == 'ALL' or current_goal == '' %}active{% endif %}">ALL</a>
+                <a href="{{ url_for('nutrition', goal='Weight Loss') }}" class="filter-btn {% if current_goal == 'Weight Loss' %}active{% endif %}">Weight Loss</a>
+                <a href="{{ url_for('nutrition', goal='Muscle Gain') }}" class="filter-btn {% if current_goal == 'Muscle Gain' %}active{% endif %}">Muscle Gain</a>
+                <a href="{{ url_for('nutrition', goal='Maintenance') }}" class="filter-btn {% if current_goal == 'Maintenance' %}active{% endif %}">Maintenance</a>
+            </div>
+        </div>
+    </div>
+
+    {% if current_user.role in ['trainer', 'admin'] %}
+    <div class="card card-custom p-4 shadow-lg mb-5 border-warning border-opacity-25">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="fw-bold text-white m-0">
+                <i class="bi bi-calculator text-warning me-2"></i> Coach Consultation Tool: Client TDEE & Macro Calculator
+            </h5>
+            <span class="badge bg-dark border border-secondary text-info">Instant Precision Formula</span>
+        </div>
+        <p class="text-muted small mb-3">Use this consultation tool during 1-on-1 sessions to calculate exact daily caloric targets and macronutrient splits based on client biometrics.</p>
+        
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label small">Gender</label>
+                <select class="form-select form-select-custom form-select-sm" id="calc-gender" onchange="calculateClientMacros()">
+                    <option value="male" selected>Male</option>
+                    <option value="female">Female</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Weight (kg)</label>
+                <input type="number" class="form-control form-control-custom form-control-sm" id="calc-weight" value="75" oninput="calculateClientMacros()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Height (cm)</label>
+                <input type="number" class="form-control form-control-custom form-control-sm" id="calc-height" value="175" oninput="calculateClientMacros()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Age (years)</label>
+                <input type="number" class="form-control form-control-custom form-control-sm" id="calc-age" value="25" oninput="calculateClientMacros()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Activity Level</label>
+                <select class="form-select form-select-custom form-select-sm" id="calc-activity" onchange="calculateClientMacros()">
+                    <option value="1.2">Sedentary (Desk Job)</option>
+                    <option value="1.375">Light (1-3 days/wk)</option>
+                    <option value="1.55" selected>Moderate (3-5 days/wk)</option>
+                    <option value="1.725">Very Active (6-7 days/wk)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Client Goal</label>
+                <select class="form-select form-select-custom form-select-sm" id="calc-goal" onchange="calculateClientMacros()">
+                    <option value="fat_loss" selected>Fat Loss (-500 kcal)</option>
+                    <option value="muscle_gain">Lean Bulk (+350 kcal)</option>
+                    <option value="maintenance">Maintenance (0 kcal)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-3 bg-dark rounded border border-secondary border-opacity-25 mt-3">
+            <div class="row text-center g-2 align-items-center">
+                <div class="col-md-3">
+                    <span class="d-block small text-muted">Maintenance TDEE</span>
+                    <strong class="text-white fs-5" id="calc-res-tdee">2,450 kcal</strong>
+                </div>
+                <div class="col-md-3">
+                    <span class="d-block small text-muted">Target Daily Calories</span>
+                    <strong class="text-emerald fs-4" id="calc-res-target">1,950 kcal</strong>
+                </div>
+                <div class="col-md-6">
+                    <div class="row g-2 text-center">
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Protein</span>
+                            <strong class="text-success" id="calc-res-p">165g</strong>
+                        </div>
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Carbs</span>
+                            <strong class="text-info" id="calc-res-c">180g</strong>
+                        </div>
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Fats</span>
+                            <strong class="text-warning" id="calc-res-f">60g</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        {% for plan in meal_plans %}
+        {% set total_macro_g = (plan.protein_g or 150) + (plan.carbs_g or 200) + (plan.fat_g or 60) %}
+        {% set p_pct = ((plan.protein_g or 150) / total_macro_g * 100)|round|int %}
+        {% set c_pct = ((plan.carbs_g or 200) / total_macro_g * 100)|round|int %}
+        {% set f_pct = ((plan.fat_g or 60) / total_macro_g * 100)|round|int %}
+        <div class="col-lg-6">
+            <div class="card card-custom p-4 shadow-lg h-100 d-flex flex-column" id="meal-plan-card-{{ plan.id }}">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h4 class="fw-bold text-white mb-1">{{ plan.title }}</h4>
+                        <span class="badge bg-warning text-dark font-weight-bold">{{ plan.goal }}</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-info fs-4 fw-bold">{{ plan.calories_per_day }}</span>
+                        <span class="text-muted small d-block">kcal / day</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-dark rounded border border-secondary border-opacity-25 mb-3">
+                    <span class="text-muted small fw-semibold d-block mb-2">Daily Macro Breakdown:</span>
+                    <div class="row text-center g-2 mb-2">
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Protein</span>
+                            <strong class="text-emerald fs-5">{{ plan.protein_g or 150 }}g</strong>
+                            <span class="extra-small text-muted d-block" style="font-size: 0.75rem;">({{ p_pct }}%)</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Carbohydrates</span>
+                            <strong class="text-info fs-5">{{ plan.carbs_g or 200 }}g</strong>
+                            <span class="extra-small text-muted d-block" style="font-size: 0.75rem;">({{ c_pct }}%)</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="d-block small text-muted">Healthy Fats</span>
+                            <strong class="text-warning fs-5">{{ plan.fat_g or 60 }}g</strong>
+                            <span class="extra-small text-muted d-block" style="font-size: 0.75rem;">({{ f_pct }}%)</span>
+                        </div>
+                    </div>
+
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ p_pct }}%;" aria-label="Protein"></div>
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ c_pct }}%;" aria-label="Carbs"></div>
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ f_pct }}%;" aria-label="Fats"></div>
+                    </div>
+                </div>
+
+                <p class="text-muted small mb-3">{{ plan.description }}</p>
+
+                {% if plan.meal_breakdown %}
+                <div class="mb-3 flex-grow-1">
+                    <div class="accordion" id="accordion-plan-{{ plan.id }}">
+                        <div class="accordion-item bg-dark border-secondary border-opacity-25 text-light">
+                            <h2 class="accordion-header" id="heading-{{ plan.id }}">
+                                <button class="accordion-button collapsed bg-dark text-white shadow-none small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ plan.id }}" aria-expanded="false">
+                                    <i class="bi bi-list-check me-2 text-info"></i> View Sample Daily Meal Schedule & Timing
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ plan.id }}" class="accordion-collapse collapse" data-bs-parent="#accordion-plan-{{ plan.id }}">
+                                <div class="accordion-body small text-muted" style="white-space: pre-line; line-height: 1.6;">
+                                    {{ plan.meal_breakdown }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25 mt-auto flex-wrap">
+                    <a href="{{ url_for('download_nutrition_plan', plan_id=plan.id) }}" target="_blank" class="btn btn-outline-info btn-sm flex-fill">
+                        <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Download Official PDF Blueprint
+                    </a>
+                    {% if current_user.role in ['trainer', 'admin'] %}
+                    <form method="POST" action="{{ url_for('trainer_delete_meal_plan', plan_id=plan.id) }}" onsubmit="return confirm('Delete this blueprint?');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    {% else %}
+                    <button type="button" class="btn btn-book btn-sm flex-fill" onclick="adoptMealPlan('{{ plan.title }}')">
+                        <i class="bi bi-bookmark-check me-1"></i> Adopt Nutrition Plan
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if current_user.role in ['trainer', 'admin'] %}
+<div class="modal fade" id="createMealPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-egg-fried text-warning me-2"></i> Create Nutrition Blueprint
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('trainer_create_meal_plan') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Blueprint Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. High Protein Clean Shred" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Fitness Goal</label>
+                            <select class="form-select form-select-custom" name="goal" required>
+                                <option value="Weight Loss">Weight Loss</option>
+                                <option value="Muscle Gain" selected>Muscle Gain</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Target Calories (kcal)</label>
+                            <input type="number" class="form-control form-control-custom" name="calories_per_day" value="2500" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label small">Protein (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="protein_g" value="180" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Carbs (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="carbs_g" value="250" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Fat (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="fat_g" value="70" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Dietary Philosophy / Summary</label>
+                        <textarea class="form-control form-control-custom" name="description" rows="2" placeholder="Summary of food sources, hydration rules, and benefits..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Structured Daily Meal Schedule & Timing</label>
+                        <textarea class="form-control form-control-custom" name="meal_breakdown" rows="4" placeholder="• Breakfast (8:00 AM): 4 Eggs, Oatmeal with Berries&#10;• Lunch (1:00 PM): Grilled Chicken Breast, Rice, Broccoli&#10;• Pre-Workout (4:30 PM): Banana with Peanut Butter&#10;• Dinner (8:00 PM): Salmon Fillet with Sweet Potato"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">
+                        <i class="bi bi-check-circle me-1"></i> Publish Nutrition Blueprint
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function adoptMealPlan(title) {
+    showToast(`Success! "${title}" set as your active dietary blueprint.`, 'success');
+}
+
+function calculateClientMacros() {
+    const gender = document.getElementById('calc-gender')?.value || 'male';
+    const weight = parseFloat(document.getElementById('calc-weight')?.value) || 75;
+    const height = parseFloat(document.getElementById('calc-height')?.value) || 175;
+    const age = parseFloat(document.getElementById('calc-age')?.value) || 25;
+    const activity = parseFloat(document.getElementById('calc-activity')?.value) || 1.55;
+    const goal = document.getElementById('calc-goal')?.value || 'fat_loss';
+
+    let bmr = 0;
+    if (gender === 'male') {
+        bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+    } else {
+        bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+    }
+
+    const tdee = Math.round(bmr * activity);
+    let targetKcal = tdee;
+
+    if (goal === 'fat_loss') {
+        targetKcal = Math.round(tdee - 500);
+    } else if (goal === 'muscle_gain') {
+        targetKcal = Math.round(tdee + 350);
+    }
+
+    const proteinG = Math.round(weight * 2.2);
+    const fatG = Math.round((targetKcal * 0.25) / 9);
+    const remainingKcal = targetKcal - (proteinG * 4) - (fatG * 9);
+    const carbsG = Math.max(20, Math.round(remainingKcal / 4));
+
+    if (document.getElementById('calc-res-tdee')) {
+        document.getElementById('calc-res-tdee').innerText = `${tdee.toLocaleString()} kcal`;
+        document.getElementById('calc-res-target').innerText = `${targetKcal.toLocaleString()} kcal`;
+        document.getElementById('calc-res-p').innerText = `${proteinG}g`;
+        document.getElementById('calc-res-c').innerText = `${carbsG}g`;
+        document.getElementById('calc-res-f').innerText = `${fatG}g`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('calc-weight')) {
+        calculateClientMacros();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}On-Demand Video Library | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="bi bi-play-circle-fill me-2"></i> On-Demand Exercise Video & Tutorial Library
+            </h3>
+            <p class="text-muted small">Stream categorized workout masterclasses, follow along with coach tutorials, or post links from the internet.</p>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if current_user.role in ['trainer', 'admin'] %}
+            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#postTutorialModal">
+                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Post New Tutorial
+            </button>
+            {% endif %}
+
+            <form method="GET" action="{{ url_for('videos') }}" class="d-flex gap-2 flex-grow-1 flex-md-grow-0" style="min-width: 260px;">
+                <div class="input-group">
+                    <input type="text" class="form-control form-control-custom" name="q" placeholder="Search tutorials..." value="{{ search_query }}">
+                    <button class="btn btn-emerald text-white px-3" type="submit" style="background: var(--accent-gradient);">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                {% if search_query or current_category != 'ALL' or current_difficulty != 'All' %}
+                <a href="{{ url_for('videos') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center">Reset</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="filter-bar mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted small fw-semibold">Category:</span>
+            <a href="{{ url_for('videos', category='ALL', difficulty=current_difficulty, q=search_query) }}" class="filter-btn {% if current_category == 'ALL' %}active{% endif %}">ALL</a>
+            <a href="{{ url_for('videos', category='CARDIO', difficulty=current_difficulty, q=search_query) }}" class="filter-btn {% if current_category == 'CARDIO' %}active{% endif %}">CARDIO</a>
+            <a href="{{ url_for('videos', category='STRENGTH', difficulty=current_difficulty, q=search_query) }}" class="filter-btn {% if current_category == 'STRENGTH' %}active{% endif %}">STRENGTH</a>
+            <a href="{{ url_for('videos', category='YOGA', difficulty=current_difficulty, q=search_query) }}" class="filter-btn {% if current_category == 'YOGA' %}active{% endif %}">YOGA</a>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted small fw-semibold">Level:</span>
+            <a href="{{ url_for('videos', category=current_category, difficulty='All', q=search_query) }}" class="filter-btn {% if current_difficulty == 'All' %}active{% endif %}">All Levels</a>
+            <a href="{{ url_for('videos', category=current_category, difficulty='Beginner', q=search_query) }}" class="filter-btn {% if current_difficulty == 'Beginner' %}active{% endif %}">Beginner</a>
+            <a href="{{ url_for('videos', category=current_category, difficulty='Intermediate', q=search_query) }}" class="filter-btn {% if current_difficulty == 'Intermediate' %}active{% endif %}">Intermediate</a>
+            <a href="{{ url_for('videos', category=current_category, difficulty='Advanced', q=search_query) }}" class="filter-btn {% if current_difficulty == 'Advanced' %}active{% endif %}">Advanced</a>
+        </div>
+    </div>
+
+    {% if videos %}
+    <div class="row g-4">
+        {% for vid in videos %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card card-custom overflow-hidden h-100 shadow d-flex flex-column">
+                <div class="position-relative">
+                    <img src="{{ vid.thumbnail_url or 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500' }}" class="card-img-top" alt="{{ vid.title }}" style="height: 210px; object-fit: cover;">
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <span class="category-badge badge-{{ vid.category.lower() }}">{{ vid.category }}</span>
+                    </div>
+                    <div class="position-absolute bottom-0 start-0 m-2">
+                        <span class="badge bg-dark bg-opacity-75 border border-secondary text-info small">
+                            <i class="bi bi-speedometer2 me-1"></i> {{ vid.difficulty }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-4 d-flex flex-column">
+                    <h5 class="fw-bold text-white mb-2">{{ vid.title }}</h5>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick="openVideoPlayer('{{ vid.title }}', '{{ vid.video_url }}', '{{ vid.category }}', '{{ vid.difficulty }}', '{{ vid.description | replace('\'', '\\\'') }}')">
+                            <i class="bi bi-play-circle-fill me-1"></i> Stream Tutorial
+                        </button>
+                        {% if current_user.role == 'admin' %}
+                        <form method="POST" action="{{ url_for('admin_delete_video', video_id=vid.id) }}" onsubmit="return confirm('Delete this video?');">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card card-custom p-5 text-center text-muted">
+        <i class="bi bi-camera-video-off fs-1 text-warning mb-2"></i>
+        <h5>No Exercise Videos Found</h5>
+        <p class="small">Try adjusting your keyword search, category, or difficulty level filters.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="videoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg overflow-hidden">
+            <div class="modal-header border-secondary border-opacity-25 py-2">
+                <h5 class="modal-title fw-bold" id="video-modal-title">Workout Stream</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="stopVideoPlayer()"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="ratio ratio-16x9">
+                    <iframe id="video-modal-iframe" src="" title="FlexFit Video Player" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                </div>
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span id="video-modal-badges"></span>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="markVideoCompleted()">
+                            <i class="bi bi-check-circle me-1"></i> Mark as Completed
+                        </button>
+                    </div>
+                    <p id="video-modal-desc" class="text-muted small mb-0"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role in ['trainer', 'admin'] %}
+<div class="modal fade" id="postTutorialModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-cloud-arrow-up-fill text-warning me-2"></i> Post Internet Tutorial Video
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('trainer_create_video') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Tutorial Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. 15-Minute Kettlebell Full Body Burn" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength" selected>Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Difficulty</label>
+                            <select class="form-select form-select-custom" name="difficulty" required>
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate" selected>Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Video Link from the Internet (YouTube / Web Link)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-link-45deg text-info"></i></span>
+                            <input type="url" class="form-control form-control-custom" name="video_url" placeholder="https://www.youtube.com/watch?v=..." required>
+                        </div>
+                        <span class="text-muted extra-small d-block mt-1" style="font-size: 0.75rem;">Paste standard YouTube links (e.g. watch?v= or youtu.be/) — they embed automatically.</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Custom Thumbnail URL (Optional)</label>
+                        <input type="url" class="form-control form-control-custom" name="thumbnail_url" placeholder="Leave empty for auto-generated thumbnail">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Tutorial Description & Coaching Cues</label>
+                        <textarea class="form-control form-control-custom" name="description" rows="2" placeholder="Key movements, reps, warmup advice, and form guidance..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-book w-100">
+                        <i class="bi bi-check-circle me-1"></i> Post & Embed to Video Library
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+let videoModalInstance = null;
+
+function openVideoPlayer(title, url, category, difficulty, desc) {
+    document.getElementById('video-modal-title').innerText = title;
+    document.getElementById('video-modal-desc').innerText = desc;
+    document.getElementById('video-modal-badges').innerHTML = `
+        <span class="category-badge badge-${category.toLowerCase()} me-1">${category}</span>
+        <span class="badge bg-dark border border-secondary text-info">${difficulty}</span>
+    `;
+
+    let embedUrl = url;
+    if (url.includes('watch?v=')) {
+        embedUrl = url.replace('watch?v=', 'embed/');
+    } else if (url.includes('youtu.be/')) {
+        embedUrl = url.replace('youtu.be/', 'www.youtube.com/embed/');
+    }
+
+    document.getElementById('video-modal-iframe').src = embedUrl;
+
+    const modalEl = document.getElementById('videoModal');
+    videoModalInstance = new bootstrap.Modal(modalEl);
+    videoModalInstance.show();
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        stopVideoPlayer();
+    }, { once: true });
+}
+
+function stopVideoPlayer() {
+    document.getElementById('video-modal-iframe').src = "";
+}
+
+function markVideoCompleted() {
+    showToast('Great job! Video completed & logged to your fitness journey.', 'success');
+}
+</script>
+{% endblock %}

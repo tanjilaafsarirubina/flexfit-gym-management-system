@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Admin & Platform Control Center | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="bi bi-shield-lock-fill me-2"></i> System Administrator Control Center
+            </h3>
+            <p class="text-muted small">Comprehensive management suite for live schedules, exercise tutorials, evidence-based nutrition plans, user access roles, membership pricing tiers, and review moderation.</p>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">Total Users</div>
+                <div class="stat-value text-info">{{ users|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">Active Classes</div>
+                <div class="stat-value text-success">{{ classes|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">Bookings</div>
+                <div class="stat-value text-warning">{{ bookings|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">Video Tutorials</div>
+                <div class="stat-value text-primary">{{ videos|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">1-on-1 Sessions</div>
+                <div class="stat-value text-info">{{ coaching_sessions|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6">
+            <div class="stat-card">
+                <div class="stat-title">Gross Revenue</div>
+                <div class="stat-value text-emerald">${{ "{:,.0f}".format(total_revenue) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-custom p-4 shadow-lg mb-5">
+        <ul class="nav nav-pills mb-4 gap-2 border-bottom border-secondary border-opacity-25 pb-3 flex-wrap" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom active" id="classes-tab" data-bs-toggle="pill" data-bs-target="#classes-content" type="button" role="tab">
+                    <i class="bi bi-calendar3 me-1"></i> Class Schedules
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom" id="videos-tab" data-bs-toggle="pill" data-bs-target="#videos-content" type="button" role="tab">
+                    <i class="bi bi-play-circle me-1"></i> Video Masterclasses
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom" id="nutrition-tab" data-bs-toggle="pill" data-bs-target="#nutrition-content" type="button" role="tab">
+                    <i class="bi bi-egg-fried me-1"></i> Nutrition Blueprints
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom" id="users-tab" data-bs-toggle="pill" data-bs-target="#users-content" type="button" role="tab">
+                    <i class="bi bi-people me-1"></i> User Roles & Access
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom" id="plans-tab" data-bs-toggle="pill" data-bs-target="#plans-content" type="button" role="tab">
+                    <i class="bi bi-credit-card-2-front me-1"></i> Membership Pricing Tiers
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link nav-link-custom" id="reviews-tab" data-bs-toggle="pill" data-bs-target="#reviews-content" type="button" role="tab">
+                    <i class="bi bi-star me-1"></i> Review Moderation
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="adminTabsContent">
+            <div class="tab-pane fade show active" id="classes-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Gym Class Timetable Management</h5>
+                    <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createClassModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add New Class
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Title</th>
+                                <th>Assigned Trainer</th>
+                                <th>Date & Time</th>
+                                <th>Capacity</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in classes %}
+                            <tr>
+                                <td><span class="category-badge badge-{{ c.category.lower() }}">{{ c.category }}</span></td>
+                                <td><strong class="text-white">{{ c.title }}</strong></td>
+                                <td>{{ c.trainer.user.full_name if c.trainer else 'N/A' }}</td>
+                                <td><span class="text-highlight">{{ c.start_time.strftime('%b %d @ %I:%M %p') }}</span></td>
+                                <td>{{ c.booked_count }}/{{ c.max_capacity }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('class_roster', class_id=c.id) }}" class="btn btn-outline-success btn-sm me-1">
+                                        <i class="bi bi-clipboard-check"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="openEditClassModal({{ c.id }}, '{{ c.title }}', '{{ c.category }}', {{ c.trainer_id }}, '{{ c.start_time.strftime('%Y-%m-%dT%H:%M') }}', {{ c.duration_mins }}, {{ c.max_capacity }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('admin_delete_class', class_id=c.id) }}" class="d-inline" onsubmit="return confirm('Delete this class?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="videos-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Video Library Management</h5>
+                    <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createVideoModal">
+                        <i class="bi bi-upload me-1"></i> Upload Exercise Video
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Thumbnail</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Difficulty</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in videos %}
+                            <tr>
+                                <td><img src="{{ v.thumbnail_url }}" alt="" class="rounded" style="width: 50px; height: 35px; object-fit: cover;"></td>
+                                <td><strong class="text-white">{{ v.title }}</strong></td>
+                                <td><span class="category-badge badge-{{ v.category.lower() }}">{{ v.category }}</span></td>
+                                <td><span class="badge bg-dark border border-secondary text-info">{{ v.difficulty }}</span></td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="openEditVideoModal({{ v.id }}, '{{ v.title }}', '{{ v.category }}', '{{ v.difficulty }}', '{{ v.video_url }}', '{{ v.thumbnail_url }}', '{{ v.description | replace('\'', '\\\'') }}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('admin_delete_video', video_id=v.id) }}" class="d-inline" onsubmit="return confirm('Delete this video?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="nutrition-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Evidence-Based Nutrition Blueprints</h5>
+                    <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createMealPlanModal">
+                        <i class="bi bi-plus-circle me-1"></i> Create Meal Plan
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Goal</th>
+                                <th>Calories</th>
+                                <th>Macros (P/C/F)</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mp in meal_plans %}
+                            <tr>
+                                <td><strong class="text-white">{{ mp.title }}</strong></td>
+                                <td><span class="badge bg-warning text-dark">{{ mp.goal }}</span></td>
+                                <td><span class="text-info fw-bold">{{ mp.calories_per_day }} kcal</span></td>
+                                <td><span class="text-muted small">{{ mp.protein_g }}g P / {{ mp.carbs_g }}g C / {{ mp.fat_g }}g F</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('download_nutrition_plan', plan_id=mp.id) }}" target="_blank" class="btn btn-outline-info btn-sm me-1">
+                                        <i class="bi bi-file-earmark-arrow-down-fill"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('admin_delete_meal_plan', plan_id=mp.id) }}" class="d-inline" onsubmit="return confirm('Delete this meal plan?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="users-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Registered User Accounts & Access Permissions</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Current Role</th>
+                                <th>Role Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td>#{{ u.id }}</td>
+                                <td><strong class="text-white">{{ u.full_name }}</strong></td>
+                                <td>{{ u.email }}</td>
+                                <td>{{ u.phone }}</td>
+                                <td>
+                                    <span class="badge {% if u.role == 'admin' %}bg-danger{% elif u.role == 'trainer' %}bg-warning text-dark{% else %}bg-secondary{% endif %} text-uppercase">
+                                        {{ u.role }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('admin_update_user_role', user_id=u.id) }}" class="d-flex gap-2 align-items-center">
+                                        <select name="role" class="form-select form-select-sm form-select-custom py-0" style="width: 110px;">
+                                            <option value="member" {% if u.role == 'member' %}selected{% endif %}>Member</option>
+                                            <option value="trainer" {% if u.role == 'trainer' %}selected{% endif %}>Trainer</option>
+                                            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-outline-light btn-sm py-0 px-2">Update</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="plans-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Membership Pricing Tiers & Packages</h5>
+                    <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createPlanModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add Membership Tier
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Plan Name</th>
+                                <th>Price ($ USD)</th>
+                                <th>Duration</th>
+                                <th>Included Features & Perks</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in plans %}
+                            <tr>
+                                <td><strong class="text-white">{{ p.name }}</strong></td>
+                                <td><span class="text-emerald fw-bold">${{ "{:,.2f}".format(p.price) }}</span></td>
+                                <td><span class="badge bg-dark border border-secondary text-info">{{ p.duration_days }} Days</span></td>
+                                <td><span class="text-muted small">{{ p.features }}</span></td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_delete_membership_plan', plan_id=p.id) }}" class="d-inline" onsubmit="return confirm('Delete this membership tier?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="reviews-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0">Verified Member Reviews & Testimonial Moderation</h5>
+                    <span class="badge bg-warning text-dark">{{ feedbacks|length }} Submitted Reviews</span>
+                </div>
+                {% if feedbacks %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Author</th>
+                                <th>Target Entity</th>
+                                <th>Rating</th>
+                                <th>Review Comment</th>
+                                <th>Date</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fb in feedbacks %}
+                            <tr>
+                                <td><strong class="text-white">{{ fb.author.full_name }}</strong></td>
+                                <td>
+                                    {% if fb.trainer %}
+                                        <span class="badge bg-info text-dark">Coach: {{ fb.trainer.user.full_name }}</span>
+                                    {% elif fb.gym_class %}
+                                        <span class="badge bg-primary">Class: {{ fb.gym_class.title }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Platform</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="text-warning fw-bold">{% for _ in range(fb.rating) %}★{% endfor %} ({{ fb.rating }}/5)</span></td>
+                                <td><span class="text-muted small fst-italic">"{{ fb.review_text }}"</span></td>
+                                <td><span class="text-subtle small">{{ fb.created_at.strftime('%b %d, %Y') }}</span></td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('admin_delete_feedback', feedback_id=fb.id) }}" class="d-inline" onsubmit="return confirm('Remove this review from platform?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No reviews submitted yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createClassModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Create New Gym Class</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('admin_create_class') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Class Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Morning Tabata HIIT" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength" selected>Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Trainer</label>
+                            <select class="form-select form-select-custom" name="trainer_id" required>
+                                {% for t in trainers %}
+                                <option value="{{ t.id }}">{{ t.user.full_name }} ({{ t.specialization }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Start Date & Time</label>
+                            <input type="datetime-local" class="form-control form-control-custom" name="start_time" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Mins</label>
+                            <input type="number" class="form-control form-control-custom" name="duration_mins" value="60" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Max Cap</label>
+                            <input type="number" class="form-control form-control-custom" name="max_capacity" value="12" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100 mt-2">Publish Class to Schedule</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Add New Membership Tier</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('admin_create_membership_plan') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Tier Name</label>
+                        <input type="text" class="form-control form-control-custom" name="name" placeholder="e.g. VIP Platinum Access" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Price ($ USD)</label>
+                            <input type="number" step="0.01" class="form-control form-control-custom" name="price" placeholder="49.99" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Duration (Days)</label>
+                            <input type="number" class="form-control form-control-custom" name="duration_days" value="30" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Features & Included Amenities</label>
+                        <textarea class="form-control form-control-custom" name="features" rows="3" placeholder="Access to sauna, priority booking, personal trainer session..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Create Membership Tier</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createVideoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Upload Exercise Video</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('admin_create_video') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Video Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. 20-Min Core Crusher" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength">Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Difficulty</label>
+                            <select class="form-select form-select-custom" name="difficulty" required>
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate" selected>Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">YouTube Embed / Video URL</label>
+                        <input type="url" class="form-control form-control-custom" name="video_url" placeholder="https://www.youtube.com/embed/..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Thumbnail Image URL</label>
+                        <input type="url" class="form-control form-control-custom" name="thumbnail_url" placeholder="https://images.unsplash.com/...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Description</label>
+                        <textarea class="form-control form-control-custom" name="description" rows="2" placeholder="Video summary and key movements..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Add to Video Library</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createMealPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Create Nutrition Blueprint</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('admin_create_meal_plan') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Meal Plan Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Clean Bulking Blueprint" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Fitness Goal</label>
+                            <select class="form-select form-select-custom" name="goal" required>
+                                <option value="Weight Loss">Weight Loss</option>
+                                <option value="Muscle Gain" selected>Muscle Gain</option>
+                                <option value="Maintenance">Maintenance</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Daily Target Calories</label>
+                            <input type="number" class="form-control form-control-custom" name="calories_per_day" value="2500" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label small">Protein (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="protein_g" value="180" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Carbs (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="carbs_g" value="250" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small">Fat (g)</label>
+                            <input type="number" class="form-control form-control-custom" name="fat_g" value="70" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Plan Overview Description</label>
+                        <textarea class="form-control form-control-custom" name="description" rows="2" placeholder="Summary of food choices and benefits..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Structured Meal Timing Breakdown</label>
+                        <textarea class="form-control form-control-custom" name="meal_breakdown" rows="3" placeholder="• Breakfast: ...&#10;• Lunch: ...&#10;• Dinner: ..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Publish Meal Plan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editClassModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Edit Gym Class</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-class-form" method="POST" action="">
+                    <div class="mb-3">
+                        <label class="form-label small">Class Title</label>
+                        <input type="text" class="form-control form-control-custom" id="edit-class-title" name="title" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" id="edit-class-category" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength">Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Trainer</label>
+                            <select class="form-select form-select-custom" id="edit-class-trainer" name="trainer_id" required>
+                                {% for t in trainers %}
+                                <option value="{{ t.id }}">{{ t.user.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Start Date & Time</label>
+                            <input type="datetime-local" class="form-control form-control-custom" id="edit-class-time" name="start_time" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Mins</label>
+                            <input type="number" class="form-control form-control-custom" id="edit-class-duration" name="duration_mins" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Max Cap</label>
+                            <input type="number" class="form-control form-control-custom" id="edit-class-cap" name="max_capacity" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Save Class Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditClassModal(id, title, category, trainerId, startTime, duration, cap) {
+    document.getElementById('edit-class-form').action = `/admin/class/edit/${id}`;
+    document.getElementById('edit-class-title').value = title;
+    document.getElementById('edit-class-category').value = category;
+    document.getElementById('edit-class-trainer').value = trainerId;
+    document.getElementById('edit-class-time').value = startTime;
+    document.getElementById('edit-class-duration').value = duration;
+    document.getElementById('edit-class-cap').value = cap;
+
+    const modalEl = document.getElementById('editClassModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Workout & Progress Tracker | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="bi bi-journal-check me-2"></i> Workout & Progress Tracker
+            </h3>
+            <p class="text-muted small">Log daily exercise sets, rep counts, and weight milestones to track overall strength gains.</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="bg-dark p-2 rounded border border-secondary border-opacity-25 d-inline-block text-start px-3">
+                <span class="text-muted small d-block">Lifetime Volume:</span>
+                <strong class="fs-4 text-info">{{ "{:,.0f}".format(total_weight) }} kg</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card card-custom p-4 shadow">
+                <h5 class="fw-bold mb-3"><i class="bi bi-plus-circle text-success me-2"></i> Log New Workout</h5>
+                <form method="POST" action="{{ url_for('tracker') }}">
+                    <div class="mb-3">
+                        <label for="exercise_name" class="form-label text-muted small fw-semibold">Exercise Name</label>
+                        <input type="text" class="form-control form-control-custom" id="exercise_name" name="exercise_name" placeholder="e.g. Barbell Bench Press" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="sets" class="form-label text-muted small fw-semibold">Sets</label>
+                            <input type="number" min="1" max="50" class="form-control form-control-custom" id="sets" name="sets" placeholder="4" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="reps" class="form-label text-muted small fw-semibold">Reps / Set</label>
+                            <input type="number" min="1" max="200" class="form-control form-control-custom" id="reps" name="reps" placeholder="10" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="weight_kg" class="form-label text-muted small fw-semibold">Weight (kg)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.5" min="0" max="1000" class="form-control form-control-custom" id="weight_kg" name="weight_kg" placeholder="50.0" required>
+                            <span class="input-group-text bg-dark border-secondary text-muted">kg</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-book w-100"><i class="bi bi-check-lg me-1"></i> Save Workout Entry</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card card-custom p-4 shadow">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold m-0"><i class="bi bi-clock-history text-warning me-2"></i> Exercise Log History</h5>
+                    <span class="badge bg-secondary">{{ total_entries }} Entries</span>
+                </div>
+
+                {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Exercise</th>
+                                <th>Sets x Reps</th>
+                                <th>Weight</th>
+                                <th>Total Volume</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                                {% set vol = log.sets * log.reps * log.weight_kg %}
+                                <tr>
+                                    <td class="text-muted small">{{ log.log_date.strftime('%b %d, %Y') }}</td>
+                                    <td><strong class="text-white">{{ log.exercise_name }}</strong></td>
+                                    <td><span class="badge bg-dark border border-secondary text-light">{{ log.sets }} sets × {{ log.reps }} reps</span></td>
+                                    <td><span class="text-highlight fw-semibold">{{ log.weight_kg }} kg</span></td>
+                                    <td><span class="text-success fw-bold">{{ "{:,.0f}".format(vol) }} kg</span></td>
+                                    <td class="text-end">
+                                        <form method="POST" action="{{ url_for('delete_workout', log_id=log.id) }}" class="d-inline" onsubmit="return confirm('Delete this workout entry?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-journal-x fs-1 mb-2 text-warning d-block"></i>
+                    <p class="mb-0">No workout logs recorded yet. Use the form on the left to start tracking!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

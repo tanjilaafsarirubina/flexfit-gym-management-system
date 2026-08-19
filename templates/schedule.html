@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Class Timetable & Schedule | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {% if current_user.role == 'trainer' %}
+                    <i class="bi bi-calendar-check text-warning me-2"></i> Gym Class Timetable & Attendance Rosters
+                {% elif current_user.role == 'admin' %}
+                    <i class="bi bi-shield-lock text-info me-2"></i> Gym Class Schedule Administration
+                {% else %}
+                    <i class="bi bi-calendar3 text-warning me-2"></i> Weekly Class Timetable
+                {% endif %}
+            </h3>
+            <p class="text-muted small">
+                {% if current_user.role == 'trainer' %}
+                    Review group classes, verify live attendance rosters for your assigned sessions, or schedule a new group class.
+                {% elif current_user.role == 'admin' %}
+                    Monitor all group sessions, manage capacity caps, and review attendance rosters.
+                {% else %}
+                    Browse upcoming workout sessions, filter by focus area, and reserve your spot live.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            {% if current_user.role in ['trainer', 'admin'] %}
+            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#createClassModal">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Class
+            </button>
+            {% endif %}
+
+            <div class="filter-bar py-1 px-3">
+                <span class="text-muted small me-2 fw-semibold">Filter:</span>
+                <a href="{{ url_for('schedule', category='ALL') }}" class="filter-btn {% if current_category == 'ALL' %}active{% endif %}">ALL</a>
+                <a href="{{ url_for('schedule', category='CARDIO') }}" class="filter-btn {% if current_category == 'CARDIO' %}active{% endif %}">CARDIO</a>
+                <a href="{{ url_for('schedule', category='STRENGTH') }}" class="filter-btn {% if current_category == 'STRENGTH' %}active{% endif %}">STRENGTH</a>
+                <a href="{{ url_for('schedule', category='YOGA') }}" class="filter-btn {% if current_category == 'YOGA' %}active{% endif %}">YOGA</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-custom p-3 shadow-lg">
+        <div class="table-responsive">
+            <table class="table table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Class Title</th>
+                        <th>Assigned Trainer</th>
+                        <th>Date & Time</th>
+                        <th>Duration</th>
+                        <th>Availability</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in classes %}
+                        {% set is_booked = c.is_booked_by_user(current_user.id) %}
+                        {% set b_count = c.booked_count %}
+                        {% set is_my_class = (current_user.role == 'trainer' and c.trainer and c.trainer.user_id == current_user.id) %}
+                        <tr class="{% if is_my_class %}table-active border-warning border-opacity-25{% endif %}">
+                            <td><span class="category-badge badge-{{ c.category.lower() }}">{{ c.category }}</span></td>
+                            <td>
+                                <strong class="text-white">{{ c.title }}</strong>
+                                {% if is_my_class %}
+                                    <span class="badge bg-warning text-dark ms-1 extra-small">Your Class</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ c.trainer.user.full_name if c.trainer and c.trainer.user else 'Staff Coach' }}</td>
+                            <td><span class="text-highlight">{{ c.start_time.strftime('%b %d, %Y @ %I:%M %p') }}</span></td>
+                            <td>{{ c.duration_mins }} mins</td>
+                            <td>
+                                <span id="spots-count-{{ c.id }}" class="badge bg-dark border border-secondary text-info">
+                                    {{ b_count }}/{{ c.max_capacity }} enrolled
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                {% if current_user.role == 'member' %}
+                                    {% set has_attended = c.user_has_attended(current_user.id) %}
+                                    {% set has_reviewed = c.user_has_reviewed(current_user.id) %}
+
+                                    {% if has_reviewed %}
+                                        <button type="button" class="btn btn-outline-success btn-sm me-1" disabled title="You have reviewed this class">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                        </button>
+                                    {% elif has_attended %}
+                                        <button type="button" class="btn btn-outline-warning btn-sm me-1" onclick="openClassReviewModal({{ c.id }}, '{{ c.title }}')" title="Review this attended class">
+                                            <i class="bi bi-star-fill me-1"></i> Review
+                                        </button>
+                                    {% endif %}
+
+                                    {% if is_booked %}
+                                        <button type="button" class="btn btn-cancel btn-sm" onclick="handleBookingAction({{ c.id }}, 'cancel', this)">
+                                            <i class="bi bi-x-circle me-1"></i> CANCEL BOOKING
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-book btn-sm" onclick="handleBookingAction({{ c.id }}, 'book', this)" {% if b_count >= c.max_capacity %}disabled{% endif %}>
+                                            {% if b_count >= c.max_capacity %}FULL{% else %}<i class="bi bi-calendar-plus me-1"></i> BOOK CLASS{% endif %}
+                                        </button>
+                                    {% endif %}
+
+                                {% elif current_user.role == 'trainer' %}
+                                    {% if is_my_class %}
+                                        <a href="{{ url_for('class_roster', class_id=c.id) }}" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);">
+                                            <i class="bi bi-check2-square me-1"></i> Attendance Roster
+                                        </a>
+                                    {% else %}
+                                        <span class="badge bg-dark border border-secondary text-muted">
+                                            Coach: {{ c.trainer.user.full_name.split()[0] if c.trainer and c.trainer.user else 'Staff' }}
+                                        </span>
+                                    {% endif %}
+
+                                {% elif current_user.role == 'admin' %}
+                                    <a href="{{ url_for('class_roster', class_id=c.id) }}" class="btn btn-outline-info btn-sm me-1">
+                                        <i class="bi bi-clipboard-check me-1"></i> Roster
+                                    </a>
+                                    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-gear"></i> Manage
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role in ['trainer', 'admin'] %}
+<div class="modal fade" id="createClassModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-calendar-plus text-warning me-2"></i> Schedule New Group Class
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('trainer_create_class') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Class Title</label>
+                        <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Sunrise Vinyasa Yoga Flow" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength" selected>Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Assigned Coach</label>
+                            {% if current_user.role == 'trainer' %}
+                                <input type="text" class="form-control form-control-custom" value="{{ current_user.full_name }} (You)" readonly>
+                            {% else %}
+                                <select class="form-select form-select-custom" name="trainer_id" required>
+                                    {% for t in trainers %}
+                                    <option value="{{ t.id }}">{{ t.user.full_name }} ({{ t.specialization }})</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Start Date & Time</label>
+                            <input type="datetime-local" class="form-control form-control-custom" name="start_time" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Duration</label>
+                            <input type="number" class="form-control form-control-custom" name="duration_mins" value="60" required>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small">Max Cap</label>
+                            <input type="number" class="form-control form-control-custom" name="max_capacity" value="12" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-book w-100 mt-2">
+                        <i class="bi bi-check-circle me-1"></i> Publish Class to Schedule
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="classReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-star-fill text-warning me-2"></i> Review <span id="modal-class-name"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="class-review-form" onsubmit="submitClassReview(event)">
+                    <input type="hidden" id="class-review-id" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label small">Your Star Rating</label>
+                        <select class="form-select form-select-custom" id="class-review-rating" required>
+                            <option value="5" selected>★★★★★ (5/5 - Outstanding Experience)</option>
+                            <option value="4">★★★★☆ (4/5 - Great Session)</option>
+                            <option value="3">★★★☆☆ (3/5 - Average)</option>
+                            <option value="2">★★☆☆☆ (2/5 - Needs Improvement)</option>
+                            <option value="1">★☆☆☆☆ (1/5 - Poor)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Feedback Comments</label>
+                        <textarea class="form-control form-control-custom" id="class-review-text" rows="3" placeholder="How was the workout intensity, pacing, and instructor guidance?" required></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-class-review-submit" class="btn btn-book w-100">
+                        <i class="bi bi-send me-1"></i> Post Verified Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let classReviewModalInstance = null;
+
+function openClassReviewModal(classId, title) {
+    document.getElementById('class-review-id').value = classId;
+    document.getElementById('modal-class-name').innerText = title;
+    document.getElementById('class-review-text').value = '';
+
+    const modalEl = document.getElementById('classReviewModal');
+    classReviewModalInstance = new bootstrap.Modal(modalEl);
+    classReviewModalInstance.show();
+}
+
+async function submitClassReview(e) {
+    e.preventDefault();
+    const classId = document.getElementById('class-review-id').value;
+    const rating = document.getElementById('class-review-rating').value;
+    const reviewText = document.getElementById('class-review-text').value;
+    const btn = document.getElementById('btn-class-review-submit');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/submit_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: parseInt(classId), rating: parseInt(rating), review_text: reviewText })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (classReviewModalInstance) classReviewModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to submit review.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

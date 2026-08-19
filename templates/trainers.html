@@ -1,0 +1,812 @@
+{% extends "base.html" %}
+
+{% block title %}{% if current_user.role == 'trainer' %}1-on-1 Coaching Hub{% else %}Personal Trainers & 1-on-1 Coaching{% endif %} | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+
+    {% if current_user.role == 'trainer' %}
+    {% set my_profile = current_user.trainer_profile %}
+    {% set avg_r, rev_c = my_profile.get_average_rating() if my_profile else (5.0, 0) %}
+    {% set upcoming_apps = trainer_appointments | selectattr('status', 'equalto', 'scheduled') | list %}
+    {% set completed_apps = trainer_appointments | selectattr('status', 'equalto', 'completed') | list %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <i class="bi bi-person-lines-fill text-warning me-2"></i> Trainer 1-on-1 Coaching Management Hub
+            </h3>
+            <p class="text-muted small">Manage client consultation appointments, document training takeaways, adjust your coaching rates, and view verified reviews.</p>
+        </div>
+        {% if my_profile %}
+        <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick="openEditProfileModal('{{ my_profile.specialization }}', {{ my_profile.hourly_rate }}, '{{ my_profile.bio | replace('\'', '\\\'') }}')">
+            <i class="bi bi-gear-fill me-1"></i> Edit My Profile & Rates
+        </button>
+        {% endif %}
+    </div>
+
+    {% if my_profile %}
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card card-custom p-4 shadow h-100 border-warning border-opacity-25">
+                <div class="text-center mb-3">
+                    <img src="{{ my_profile.profile_image_url or 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400' }}" alt="{{ current_user.full_name }}" class="rounded-circle border border-2 border-warning shadow mb-2" style="width: 90px; height: 90px; object-fit: cover;">
+                    <h5 class="fw-bold text-white mb-1">{{ current_user.full_name }}</h5>
+                    <span class="badge bg-warning text-dark font-weight-bold">{{ my_profile.specialization }}</span>
+                </div>
+                <div class="p-3 bg-dark rounded border border-secondary border-opacity-25 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Hourly Rate:</span>
+                        <strong class="text-success fs-5">${{ "{:,.2f}".format(my_profile.hourly_rate) }} / hr</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Client Rating:</span>
+                        <strong class="text-warning"><i class="bi bi-star-fill"></i> {{ avg_r }} / 5.0 <span class="text-muted extra-small">({{ rev_c }} reviews)</span></strong>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">{{ my_profile.bio }}</p>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="row g-3 mb-3">
+                <div class="col-sm-4">
+                    <div class="stat-card">
+                        <div class="stat-title"><i class="bi bi-clock-history text-warning me-1"></i> Upcoming Sessions</div>
+                        <div class="stat-value text-warning">{{ upcoming_apps|length }}</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="stat-card">
+                        <div class="stat-title"><i class="bi bi-check-circle-fill text-success me-1"></i> Completed</div>
+                        <div class="stat-value text-success">{{ completed_apps|length }}</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="stat-card">
+                        <div class="stat-title"><i class="bi bi-people-fill text-info me-1"></i> Total Bookings</div>
+                        <div class="stat-value text-info">{{ trainer_appointments|length }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card card-custom p-4 shadow">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0"><i class="bi bi-calendar2-check text-info me-2"></i> Upcoming Client Appointments</h5>
+                    <span class="badge bg-info text-dark">{{ upcoming_apps|length }} Active</span>
+                </div>
+                {% if upcoming_apps %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Client Details</th>
+                                <th>Appointment Time</th>
+                                <th>Client Goal / Focus Notes</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appt in upcoming_apps %}
+                            <tr>
+                                <td>
+                                    <strong class="text-white d-block">{{ appt.client.full_name }}</strong>
+                                    <span class="text-muted extra-small d-block"><i class="bi bi-envelope me-1"></i>{{ appt.client.email }}</span>
+                                    <span class="text-muted extra-small d-block"><i class="bi bi-telephone me-1"></i>{{ appt.client.phone }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-highlight fw-semibold">{{ appt.session_time.strftime('%b %d, %Y') }}</span>
+                                    <span class="text-muted small d-block">{{ appt.session_time.strftime('%I:%M %p') }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted small fst-italic">{{ appt.notes or 'No specific notes provided.' }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-emerald btn-sm text-white me-1" style="background: var(--accent-gradient);" onclick="openCompleteSessionModal({{ appt.id }}, '{{ appt.client.full_name }}', '{{ appt.notes | replace('\'', '\\\'') if appt.notes else '' }}')">
+                                        <i class="bi bi-check-lg me-1"></i> Complete
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelCoachingSession({{ appt.id }})">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No upcoming 1-on-1 client appointments scheduled.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card card-custom p-4 shadow h-100">
+                <h5 class="fw-bold text-white mb-3"><i class="bi bi-archive text-secondary me-2"></i> Completed Client Sessions</h5>
+                {% if completed_apps %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for ca in completed_apps %}
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-25 px-0 py-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <strong class="text-white">{{ ca.client.full_name }}</strong>
+                            <span class="badge bg-success text-uppercase">Completed</span>
+                        </div>
+                        <span class="text-muted extra-small d-block mb-1">{{ ca.session_time.strftime('%b %d, %Y @ %I:%M %p') }}</span>
+                        {% if ca.notes %}
+                        <div class="p-2 bg-dark rounded border border-secondary border-opacity-25 small text-light">
+                            <span class="text-info fw-semibold">Takeaways / Notes:</span> {{ ca.notes }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No completed sessions logged yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card card-custom p-4 shadow h-100">
+                <h5 class="fw-bold text-white mb-3"><i class="bi bi-chat-heart text-danger me-2"></i> Client Reviews & Testimonials</h5>
+                {% if my_profile.reviews_received %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for rev in my_profile.reviews_received %}
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-25 px-0 py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong class="text-white">{{ rev.author.full_name }}</strong>
+                            <span class="text-warning small fw-bold">
+                                {% for _ in range(rev.rating) %}⭐{% endfor %} ({{ rev.rating }}/5)
+                            </span>
+                        </div>
+                        <p class="text-muted small mb-1 fst-italic">"{{ rev.review_text }}"</p>
+                        <span class="text-subtle extra-small text-end d-block" style="font-size: 0.75rem;">{{ rev.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No client reviews received yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {% if current_user.role == 'admin' %}
+                    <i class="bi bi-shield-lock text-info me-2"></i> Gym Trainers & 1-on-1 Coaching Administration
+                {% else %}
+                    <i class="bi bi-people-fill me-2"></i> Certified Personal Coaches & 1-on-1 Training
+                {% endif %}
+            </h3>
+            <p class="text-muted small">
+                {% if current_user.role == 'admin' %}
+                    Monitor trainer staff, oversee 1-on-1 appointments, and review client satisfaction feedback.
+                {% else %}
+                    Connect with certified personal coaches, book customized private sessions, and view verified client ratings.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if current_user.role == 'admin' and trainer_appointments %}
+    <div class="card card-custom p-4 shadow-lg mb-5 border-info border-opacity-25">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold m-0 text-white"><i class="bi bi-calendar-range text-info me-2"></i> All Gym-Wide 1-on-1 Coaching Appointments</h5>
+            <span class="badge bg-info text-dark">{{ trainer_appointments|length }} Sessions Booked</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Assigned Trainer</th>
+                        <th>Date & Time</th>
+                        <th>Session Focus / Notes</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cs in trainer_appointments %}
+                    <tr>
+                        <td>
+                            <strong class="text-white">{{ cs.client.full_name }}</strong>
+                            <span class="text-muted extra-small d-block">{{ cs.client.email }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-dark border border-secondary text-warning">{{ cs.trainer.user.full_name }}</span>
+                        </td>
+                        <td><span class="text-highlight">{{ cs.session_time.strftime('%b %d, %Y @ %I:%M %p') }}</span></td>
+                        <td class="text-muted small">{{ cs.notes or 'N/A' }}</td>
+                        <td>
+                            {% if cs.status == 'scheduled' %}
+                                <span class="badge bg-primary text-uppercase">Scheduled</span>
+                            {% elif cs.status == 'completed' %}
+                                <span class="badge bg-success text-uppercase">Completed</span>
+                            {% else %}
+                                <span class="badge bg-danger text-uppercase">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if cs.status == 'scheduled' %}
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelCoachingSession({{ cs.id }})">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user_coaching_sessions and current_user.role == 'member' %}
+    <div class="card card-custom p-4 shadow-lg mb-5 border-info border-opacity-25">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold m-0 text-white"><i class="bi bi-calendar-heart text-info me-2"></i> My Booked 1-on-1 Coaching Appointments</h5>
+            <span class="badge bg-info text-dark">{{ user_coaching_sessions|length }} Sessions</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-custom align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Trainer</th>
+                        <th>Specialization</th>
+                        <th>Date & Time</th>
+                        <th>Session Notes</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cs in user_coaching_sessions %}
+                    <tr>
+                        <td><strong class="text-white">{{ cs.trainer.user.full_name }}</strong></td>
+                        <td><span class="badge bg-dark border border-secondary text-info">{{ cs.trainer.specialization }}</span></td>
+                        <td><span class="text-highlight">{{ cs.session_time.strftime('%b %d, %Y @ %I:%M %p') }}</span></td>
+                        <td class="text-muted small">{{ cs.notes or 'General 1-on-1 Coaching' }}</td>
+                        <td>
+                            {% if cs.status == 'scheduled' %}
+                                <span class="badge bg-primary text-uppercase">Scheduled</span>
+                            {% elif cs.status == 'completed' %}
+                                <span class="badge bg-success text-uppercase">Completed</span>
+                            {% else %}
+                                <span class="badge bg-danger text-uppercase">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if cs.status == 'scheduled' %}
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelCoachingSession({{ cs.id }})">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </button>
+                            {% elif cs.status == 'completed' and not cs.trainer.user_has_reviewed(current_user.id) %}
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="openReviewModal({{ cs.trainer.id }}, 'trainer', '{{ cs.trainer.user.full_name }}')">
+                                <i class="bi bi-star-fill me-1"></i> Review Coach
+                            </button>
+                            {% elif cs.status == 'completed' and cs.trainer.user_has_reviewed(current_user.id) %}
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25"><i class="bi bi-check-circle-fill me-1"></i> Reviewed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        {% for trainer in trainers %}
+        {% set avg_rating, rev_count = trainer.get_average_rating() %}
+        <div class="col-md-6 col-lg-6">
+            <div class="card card-custom p-4 shadow h-100 d-flex flex-column">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <img src="{{ trainer.profile_image_url or 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400' }}" alt="{{ trainer.user.full_name }}" class="rounded-circle border border-2 border-secondary" style="width: 75px; height: 75px; object-fit: cover;">
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold text-white mb-1">{{ trainer.user.full_name }}</h4>
+                                <span class="badge bg-info text-dark font-weight-bold">{{ trainer.specialization }}</span>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-warning fw-bold small">
+                                    <i class="bi bi-star-fill"></i> {{ avg_rating }} / 5.0
+                                </div>
+                                <span class="text-muted extra-small" style="font-size: 0.75rem;">({{ rev_count }} reviews)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted small mb-3 flex-grow-1">{{ trainer.bio }}</p>
+
+                <div class="p-3 bg-dark rounded border border-secondary border-opacity-25 mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Coaching Rate:</span>
+                        <strong class="text-success fs-5">${{ "{:,.2f}".format(trainer.hourly_rate) }} <span class="text-muted small fs-6">/ hour</span></strong>
+                    </div>
+                </div>
+
+                {% if trainer.reviews_received %}
+                <div class="mb-3">
+                    <span class="text-muted small fw-semibold d-block mb-1">Recent Client Feedback:</span>
+                    <div class="p-2 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-10 small text-light fst-italic">
+                        "{{ trainer.reviews_received[0].review_text }}"
+                        <div class="text-subtle text-end mt-1" style="font-size: 0.75rem;">- {{ trainer.reviews_received[0].author.full_name }} ({{ trainer.reviews_received[0].rating }}★)</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25 mt-auto">
+                    {% if current_user.role == 'member' %}
+                        {% set can_review_coach = trainer.user_has_attended(current_user.id) %}
+                        {% set has_reviewed_coach = trainer.user_has_reviewed(current_user.id) %}
+
+                        {% if has_reviewed_coach %}
+                            <button type="button" class="btn btn-outline-success btn-sm flex-fill" disabled title="You have reviewed this instructor">
+                                <i class="bi bi-check-circle-fill me-1"></i> Reviewed
+                            </button>
+                        {% elif can_review_coach %}
+                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" onclick="openReviewModal({{ trainer.id }}, 'trainer', '{{ trainer.user.full_name }}')" title="Review this instructor">
+                                <i class="bi bi-star-fill me-1"></i> Review Coach
+                            </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick="openCoachingModal({{ trainer.id }}, '{{ trainer.user.full_name }}', {{ trainer.hourly_rate }})">
+                            <i class="bi bi-calendar-plus me-1"></i> Book 1-on-1
+                        </button>
+                    {% elif current_user.role == 'admin' %}
+                        <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick="openAdminEditCoachModal({{ trainer.id }}, '{{ trainer.user.full_name }}', '{{ trainer.specialization }}', {{ trainer.hourly_rate }}, '{{ trainer.bio | replace('\'', '\\\'') }}')">
+                            <i class="bi bi-person-gear me-1"></i> Edit Profile & Rate
+                        </button>
+                        <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm flex-fill">
+                            <i class="bi bi-shield-lock me-1"></i> Manage Staff
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+<div class="modal fade" id="coachingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-calendar2-check text-info me-2"></i> Book 1-on-1 Coaching Session
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="bg-dark p-3 rounded border border-secondary border-opacity-25 mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Personal Coach:</span>
+                        <strong id="coach-modal-name" class="text-white">Coach</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted small">Hourly Rate:</span>
+                        <strong id="coach-modal-rate" class="text-success fs-5">$0.00</strong>
+                    </div>
+                </div>
+
+                <form id="coaching-form" onsubmit="submitCoachingBooking(event)">
+                    <input type="hidden" id="coach-modal-trainer-id" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label small">Appointment Date & Time</label>
+                        <input type="datetime-local" class="form-control form-control-custom" id="coach-modal-time" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Training Goals / Specific Focus Notes</label>
+                        <textarea class="form-control form-control-custom" id="coach-modal-notes" rows="3" placeholder="e.g. Strength plateau breakdown, posture analysis, diet optimization..."></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-coach-submit" class="btn btn-book w-100">
+                        <i class="bi bi-check-circle me-1"></i> Confirm 1-on-1 Appointment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="completeSessionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-check-circle-fill text-success me-2"></i> Complete 1-on-1 Session
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="complete-session-form" onsubmit="submitCompleteSession(event)">
+                    <input type="hidden" id="complete-session-id" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label small">Client</label>
+                        <input type="text" class="form-control form-control-custom" id="complete-session-client" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Session Notes & Consultation Takeaways</label>
+                        <textarea class="form-control form-control-custom" id="complete-session-notes" rows="4" placeholder="Record exercises performed, form corrections, PRs, and next week's assignments..." required></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-complete-submit" class="btn btn-emerald w-100 text-white" style="background: var(--accent-gradient);">
+                        <i class="bi bi-check-lg me-1"></i> Save Takeaways & Mark Completed
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-person-gear text-info me-2"></i> Edit Coach Profile & Rates
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-profile-form" onsubmit="submitEditProfile(event)">
+                    <div class="mb-3">
+                        <label class="form-label small">Specialization</label>
+                        <input type="text" class="form-control form-control-custom" id="edit-profile-spec" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Hourly Rate ($ USD)</label>
+                        <input type="number" step="0.01" class="form-control form-control-custom" id="edit-profile-rate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Professional Bio & Coaching Philosophy</label>
+                        <textarea class="form-control form-control-custom" id="edit-profile-bio" rows="4" required></textarea>
+                    </div>
+                    <button type="submit" id="btn-edit-profile-submit" class="btn btn-book w-100">
+                        <i class="bi bi-check-circle me-1"></i> Update Coaching Profile
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-star-fill text-warning me-2"></i> Leave Verified Feedback
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="review-form" onsubmit="submitReview(event)">
+                    <input type="hidden" id="review-target-id" value="">
+                    <input type="hidden" id="review-target-type" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label small">Rating Score</label>
+                        <select class="form-select form-select-custom" id="review-rating" required>
+                            <option value="5" selected>⭐⭐⭐⭐⭐ (5 Stars - Exceptional)</option>
+                            <option value="4">⭐⭐⭐⭐ (4 Stars - Very Good)</option>
+                            <option value="3">⭐⭐⭐ (3 Stars - Average)</option>
+                            <option value="2">⭐⭐ (2 Stars - Needs Improvement)</option>
+                            <option value="1">⭐ (1 Star - Poor)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Your Review & Comments</label>
+                        <textarea class="form-control form-control-custom" id="review-text" rows="3" placeholder="Share your personal experience, coaching takeaways, or class feedback..." required></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-review-submit" class="btn btn-book w-100">
+                        <i class="bi bi-send me-1"></i> Submit Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="adminEditCoachModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-person-gear text-info me-2"></i> Admin: Edit Coach Profile & Rate
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="admin-edit-coach-form" onsubmit="submitAdminEditCoach(event)">
+                    <input type="hidden" id="admin-coach-id" value="">
+                    <div class="mb-3">
+                        <label class="form-label small">Coach Name</label>
+                        <input type="text" class="form-control form-control-custom" id="admin-coach-name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Specialization</label>
+                        <input type="text" class="form-control form-control-custom" id="admin-coach-spec" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Hourly Rate ($ USD)</label>
+                        <input type="number" step="0.01" class="form-control form-control-custom" id="admin-coach-rate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Bio</label>
+                        <textarea class="form-control form-control-custom" id="admin-coach-bio" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" id="btn-admin-coach-submit" class="btn btn-book w-100">
+                        <i class="bi bi-check-circle me-1"></i> Save Coach Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+let coachingModalInstance = null;
+let reviewModalInstance = null;
+let completeSessionModalInstance = null;
+let editProfileModalInstance = null;
+let adminEditCoachModalInstance = null;
+
+function openAdminEditCoachModal(trainerId, coachName, spec, rate, bio) {
+    document.getElementById('admin-coach-id').value = trainerId;
+    document.getElementById('admin-coach-name').value = coachName;
+    document.getElementById('admin-coach-spec').value = spec;
+    document.getElementById('admin-coach-rate').value = rate;
+    document.getElementById('admin-coach-bio').value = bio;
+
+    const modalEl = document.getElementById('adminEditCoachModal');
+    adminEditCoachModalInstance = new bootstrap.Modal(modalEl);
+    adminEditCoachModalInstance.show();
+}
+
+async function submitAdminEditCoach(e) {
+    e.preventDefault();
+    const trainerId = document.getElementById('admin-coach-id').value;
+    const spec = document.getElementById('admin-coach-spec').value;
+    const rate = document.getElementById('admin-coach-rate').value;
+    const bio = document.getElementById('admin-coach-bio').value;
+    const btn = document.getElementById('btn-admin-coach-submit');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/update_trainer_profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trainer_id: parseInt(trainerId), specialization: spec, hourly_rate: rate, bio: bio })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (adminEditCoachModalInstance) adminEditCoachModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Error updating coach.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+
+function openCoachingModal(trainerId, trainerName, rate) {
+    document.getElementById('coach-modal-trainer-id').value = trainerId;
+    document.getElementById('coach-modal-name').innerText = trainerName;
+    document.getElementById('coach-modal-rate').innerText = `$${parseFloat(rate).toFixed(2)}/hr`;
+
+    const now = new Date();
+    now.setHours(now.getHours() + 24);
+    const dateFormatted = now.toISOString().slice(0, 16);
+    document.getElementById('coach-modal-time').value = dateFormatted;
+
+    const modalEl = document.getElementById('coachingModal');
+    coachingModalInstance = new bootstrap.Modal(modalEl);
+    coachingModalInstance.show();
+}
+
+async function submitCoachingBooking(e) {
+    e.preventDefault();
+    const trainerId = document.getElementById('coach-modal-trainer-id').value;
+    const sessionTime = document.getElementById('coach-modal-time').value;
+    const notes = document.getElementById('coach-modal-notes').value;
+    const btn = document.getElementById('btn-coach-submit');
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Booking Session...`;
+
+    try {
+        const res = await fetch('/api/book_coaching', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trainer_id: trainerId, session_time: sessionTime, notes: notes })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showToast(data.message || 'Failed to book session.', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-check-circle me-1"></i> Confirm 1-on-1 Appointment`;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-check-circle me-1"></i> Confirm 1-on-1 Appointment`;
+    }
+}
+
+function openCompleteSessionModal(id, clientName, existingNotes) {
+    document.getElementById('complete-session-id').value = id;
+    document.getElementById('complete-session-client').value = clientName;
+    document.getElementById('complete-session-notes').value = existingNotes || '';
+
+    const modalEl = document.getElementById('completeSessionModal');
+    completeSessionModalInstance = new bootstrap.Modal(modalEl);
+    completeSessionModalInstance.show();
+}
+
+async function submitCompleteSession(e) {
+    e.preventDefault();
+    const id = document.getElementById('complete-session-id').value;
+    const notes = document.getElementById('complete-session-notes').value;
+    const btn = document.getElementById('btn-complete-submit');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/update_coaching_status/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed', notes: notes })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (completeSessionModalInstance) completeSessionModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Error completing session.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+
+async function cancelCoachingSession(sessionId) {
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+    try {
+        const res = await fetch(`/api/cancel_coaching/${sessionId}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Error cancelling appointment.', 'danger');
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+    }
+}
+
+function openEditProfileModal(spec, rate, bio) {
+    document.getElementById('edit-profile-spec').value = spec;
+    document.getElementById('edit-profile-rate').value = rate;
+    document.getElementById('edit-profile-bio').value = bio;
+
+    const modalEl = document.getElementById('editProfileModal');
+    editProfileModalInstance = new bootstrap.Modal(modalEl);
+    editProfileModalInstance.show();
+}
+
+async function submitEditProfile(e) {
+    e.preventDefault();
+    const spec = document.getElementById('edit-profile-spec').value;
+    const rate = document.getElementById('edit-profile-rate').value;
+    const bio = document.getElementById('edit-profile-bio').value;
+    const btn = document.getElementById('btn-edit-profile-submit');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/update_trainer_profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ specialization: spec, hourly_rate: rate, bio: bio })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (editProfileModalInstance) editProfileModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Error updating profile.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+
+function openReviewModal(targetId, targetType, targetName) {
+    document.getElementById('review-target-id').value = targetId;
+    document.getElementById('review-target-type').value = targetType;
+    document.getElementById('review-text').value = '';
+
+    const modalEl = document.getElementById('reviewModal');
+    reviewModalInstance = new bootstrap.Modal(modalEl);
+    reviewModalInstance.show();
+}
+
+async function submitReview(e) {
+    e.preventDefault();
+    const targetId = document.getElementById('review-target-id').value;
+    const targetType = document.getElementById('review-target-type').value;
+    const rating = document.getElementById('review-rating').value;
+    const reviewText = document.getElementById('review-text').value;
+    const btn = document.getElementById('btn-review-submit');
+
+    btn.disabled = true;
+
+    const payload = {
+        rating: parseInt(rating),
+        review_text: reviewText
+    };
+    if (targetType === 'trainer') {
+        payload.trainer_id = parseInt(targetId);
+    } else {
+        payload.class_id = parseInt(targetId);
+    }
+
+    try {
+        const res = await fetch('/api/submit_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (reviewModalInstance) reviewModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to submit review.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Membership Plans & Sandbox Payment Gateway | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {% if current_user.role == 'admin' %}
+                    <i class="bi bi-credit-card-2-front text-info me-2"></i> Gym Membership Plans & Tier Administration
+                {% else %}
+                    Membership Catalog & Payment Gateway
+                {% endif %}
+            </h3>
+            <p class="text-muted small">
+                {% if current_user.role == 'admin' %}
+                    Manage membership pricing tiers, configure included amenities, and test payment gateway sandboxes.
+                {% else %}
+                    Choose a membership tier and subscribe instantly via bKash, Nagad, Rocket, or Visa/Mastercard sandbox.
+                {% endif %}
+            </p>
+        </div>
+
+        {% if current_user.role == 'admin' %}
+        <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" data-bs-toggle="modal" data-bs-target="#adminAddPlanModal">
+            <i class="bi bi-plus-circle-fill me-1"></i> Add Membership Tier
+        </button>
+        {% endif %}
+    </div>
+
+    {% if user_membership and current_user.role != 'admin' %}
+    <div class="row mb-5 justify-content-center">
+        <div class="col-md-9">
+            <div class="card card-custom p-4 border border-opacity-50 {% if user_membership.status == 'active' %}border-success{% else %}border-warning{% endif %} shadow-lg">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge {% if user_membership.status == 'active' %}bg-success{% else %}bg-warning text-dark{% endif %} text-uppercase px-3 py-1">
+                                <i class="bi bi-shield-check me-1"></i> {{ user_membership.status.upper() }}
+                            </span>
+                            <span class="badge bg-dark border border-secondary text-info px-2 py-1">
+                                {{ user_membership.days_remaining }} Days Remaining
+                            </span>
+                        </div>
+                        <h4 class="fw-bold m-0 text-white">{{ user_membership.plan.name }}</h4>
+                        <p class="text-muted small mb-0 mt-1">
+                            <i class="bi bi-calendar-range me-1"></i> Valid from <strong>{{ user_membership.start_date.strftime('%b %d, %Y') }}</strong> to <strong>{{ user_membership.end_date.strftime('%b %d, %Y') }}</strong>
+                        </p>
+                    </div>
+                    <div class="text-md-end">
+                        <span class="fs-3 fw-bold text-info">${{ "{:,.2f}".format(user_membership.plan.price) }}</span>
+                        <div class="mt-2 d-flex gap-2 justify-content-md-end">
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="toggleFreezeMembership()">
+                                {% if user_membership.status == 'active' %}
+                                    <i class="bi bi-snow me-1"></i> Freeze Account
+                                {% else %}
+                                    <i class="bi bi-fire me-1"></i> Unfreeze & Reactivate
+                                {% endif %}
+                            </button>
+                            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick="openGatewayModal({{ user_membership.plan.id }}, '{{ user_membership.plan.name }}', {{ user_membership.plan.price }}, {{ user_membership.plan.duration_days }})">
+                                <i class="bi bi-arrow-repeat me-1"></i> Renew Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4 justify-content-center mb-5">
+        {% for plan in plans %}
+        <div class="col-md-4">
+            <div class="card card-custom p-4 text-center h-100 shadow d-flex flex-column position-relative">
+                {% if plan.name == 'Annual Gold' %}
+                <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-3 px-2 py-1 text-uppercase fw-bold" style="font-size: 0.7rem;">
+                    Best Value
+                </span>
+                {% endif %}
+                <h4 class="fw-bold text-white mb-1">{{ plan.name }}</h4>
+                <div class="my-3">
+                    <span class="fs-1 fw-bold text-highlight">${{ "{:,.2f}".format(plan.price) }}</span>
+                    <span class="text-muted small">/ {{ plan.duration_days }} days</span>
+                    <div class="text-muted extra-small mt-1">(≈ ৳ {{ "{:,.0f}".format(plan.price * 110) }} BDT)</div>
+                </div>
+                <p class="text-muted small mb-4 flex-grow-1">{{ plan.features }}</p>
+                
+                {% if current_user.role == 'admin' %}
+                <div class="d-flex gap-2 mt-auto">
+                    <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick="openGatewayModal({{ plan.id }}, '{{ plan.name }}', {{ plan.price }}, {{ plan.duration_days }})">
+                        <i class="bi bi-credit-card me-1"></i> Test Gateway
+                    </button>
+                    <form method="POST" action="{{ url_for('admin_delete_membership_plan', plan_id=plan.id) }}" onsubmit="return confirm('Delete this plan tier?');">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <button type="button" class="btn btn-book mt-auto" onclick="openGatewayModal({{ plan.id }}, '{{ plan.name }}', {{ plan.price }}, {{ plan.duration_days }})">
+                    <i class="bi bi-wallet2 me-1"></i> Pay with bKash / Nagad / Card
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card card-custom p-4 shadow text-center border-secondary border-opacity-25 mb-4">
+        <h6 class="text-muted text-uppercase fw-bold mb-3" style="letter-spacing: 1px; font-size: 0.8rem;">
+            <i class="bi bi-shield-lock-fill text-success me-1"></i> Integrated Multi-Channel Sandbox Payment Gateways
+        </h6>
+        <div class="d-flex justify-content-center align-items-center gap-4 flex-wrap">
+            <div class="p-2 px-3 rounded bg-dark border border-secondary border-opacity-25 d-flex align-items-center gap-2">
+                <span class="badge" style="background-color: #D12053; color: #fff;">bKash</span>
+                <span class="small text-light">bKash Merchant Pay</span>
+            </div>
+            <div class="p-2 px-3 rounded bg-dark border border-secondary border-opacity-25 d-flex align-items-center gap-2">
+                <span class="badge" style="background-color: #F7941D; color: #fff;">Nagad</span>
+                <span class="small text-light">Nagad Direct Pay</span>
+            </div>
+            <div class="p-2 px-3 rounded bg-dark border border-secondary border-opacity-25 d-flex align-items-center gap-2">
+                <span class="badge" style="background-color: #8C3494; color: #fff;">Rocket</span>
+                <span class="small text-light">DBBL Rocket Pay</span>
+            </div>
+            <div class="p-2 px-3 rounded bg-dark border border-secondary border-opacity-25 d-flex align-items-center gap-2">
+                <span class="badge bg-primary">Card</span>
+                <span class="small text-light">Visa / Mastercard / Amex</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gatewayModal" tabindex="-1" aria-labelledby="gatewayModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content card-custom text-light border-0 shadow-2xl">
+            <div class="modal-header border-secondary border-opacity-25 py-3">
+                <div>
+                    <h5 class="modal-title fw-bold m-0" id="gatewayModalLabel">
+                        <i class="bi bi-shield-lock-fill text-success me-2"></i> FlexFit Multi-Channel Sandbox Gateway
+                    </h5>
+                    <span class="extra-small text-muted" style="font-size: 0.75rem;">Simulated 256-bit SSL Encrypted Sandbox Testing Environment</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <div class="bg-dark p-3 rounded border border-secondary border-opacity-25 mb-4">
+                    <div class="row align-items-center">
+                        <div class="col-sm-6">
+                            <span class="text-muted extra-small text-uppercase">Subscribing Tier</span>
+                            <h5 id="gw-plan-name" class="fw-bold text-white mb-0">Plan</h5>
+                            <span id="gw-plan-duration" class="text-info small">0 Days Access</span>
+                        </div>
+                        <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+                            <span class="text-muted extra-small text-uppercase">Total Payable</span>
+                            <div class="d-flex align-items-baseline justify-content-sm-end gap-2">
+                                <h3 id="gw-plan-price-usd" class="fw-bold text-success mb-0">$0.00</h3>
+                                <span id="gw-plan-price-bdt" class="text-muted small">(৳ 0 BDT)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase" style="font-size: 0.75rem;">Select Payment Method</label>
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <button type="button" class="btn w-100 py-2 payment-method-btn active text-start" id="btn-method-bkash" onclick="selectPaymentMethod('bkash')">
+                                <div class="fw-bold" style="color: #E2136E;"><i class="bi bi-phone me-1"></i> bKash</div>
+                                <div class="text-muted extra-small" style="font-size: 0.7rem;">Wallet Pay</div>
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button type="button" class="btn w-100 py-2 payment-method-btn text-start" id="btn-method-nagad" onclick="selectPaymentMethod('nagad')">
+                                <div class="fw-bold" style="color: #F7941D;"><i class="bi bi-wallet me-1"></i> Nagad</div>
+                                <div class="text-muted extra-small" style="font-size: 0.7rem;">Direct Pay</div>
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button type="button" class="btn w-100 py-2 payment-method-btn text-start" id="btn-method-rocket" onclick="selectPaymentMethod('rocket')">
+                                <div class="fw-bold" style="color: #BA68C8;"><i class="bi bi-bank me-1"></i> Rocket</div>
+                                <div class="text-muted extra-small" style="font-size: 0.7rem;">DBBL MFS</div>
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button type="button" class="btn w-100 py-2 payment-method-btn text-start" id="btn-method-card" onclick="selectPaymentMethod('card')">
+                                <div class="fw-bold text-info"><i class="bi bi-credit-card-2-front me-1"></i> Card</div>
+                                <div class="text-muted extra-small" style="font-size: 0.7rem;">Visa/Master</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="gateway-form" onsubmit="processGatewayCheckout(event)">
+                    <input type="hidden" id="gw-plan-id" value="">
+                    <input type="hidden" id="gw-selected-method" value="bkash">
+
+                    <div id="mfs-fields-container" class="p-3 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-50 mb-3">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span id="mfs-logo-badge" class="badge px-3 py-2 fw-bold" style="background-color: #E2136E; color: white;">bKash</span>
+                            <span class="small text-muted" id="mfs-instructions">Enter your 11-digit mobile wallet number and 5-digit PIN for sandbox payment simulation.</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small" id="lbl-wallet-number">bKash Account Number</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-muted">+88</span>
+                                <input type="text" class="form-control form-control-custom" id="gw-wallet-number" placeholder="017XXXXXXXX" value="01711000001" maxlength="11" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">Sandbox OTP</label>
+                                <input type="text" class="form-control form-control-custom" id="gw-wallet-otp" value="123456" maxlength="6" required>
+                                <span class="extra-small text-muted" style="font-size: 0.7rem;">Simulated OTP auto-filled</span>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small" id="lbl-wallet-pin">bKash PIN</label>
+                                <input type="password" class="form-control form-control-custom" id="gw-wallet-pin" placeholder="•••••" value="12345" maxlength="5" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="card-fields-container" class="p-3 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-50 mb-3 d-none">
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="badge bg-primary px-3 py-2 fw-bold">Cards</span>
+                            <span class="small text-muted">Enter test card information for 3D Secure sandbox checkout.</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small">Cardholder Name</label>
+                            <input type="text" class="form-control form-control-custom" id="gw-card-name" value="{{ current_user.full_name }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small">Card Number</label>
+                            <input type="text" class="form-control form-control-custom" id="gw-card-number" placeholder="4000 1234 5678 9010" value="4000123456789010" maxlength="19">
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small">Expiry (MM/YY)</label>
+                                <input type="text" class="form-control form-control-custom" id="gw-card-expiry" placeholder="12/28" value="12/28" maxlength="5">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">CVV</label>
+                                <input type="password" class="form-control form-control-custom" id="gw-card-cvv" placeholder="123" value="123" maxlength="4">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="simulation-status" class="alert alert-info py-2 small d-none mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span id="simulation-status-text">Connecting to gateway switch...</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-gw-submit" class="btn btn-book w-100 py-2">
+                        <i class="bi bi-lock-fill me-1"></i> Authorize & Complete Payment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-success border-opacity-50 shadow-2xl">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3.5rem;"></i>
+                </div>
+                <h4 class="fw-bold text-white mb-1">Payment Successful!</h4>
+                <p class="text-muted small mb-4">Your membership plan has been activated instantly via sandbox settlement.</p>
+
+                <div class="bg-dark p-3 rounded border border-secondary border-opacity-25 text-start mb-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Transaction ID:</span>
+                        <strong class="text-warning font-monospace" id="receipt-trx-id">BKASH123456</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Payment Channel:</span>
+                        <span class="badge bg-secondary" id="receipt-channel">bKash Gateway</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Subscribed Plan:</span>
+                        <strong class="text-white" id="receipt-plan">Monthly Access</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted small">Amount Settled:</span>
+                        <strong class="text-success" id="receipt-amount">$29.99 USD (৳ 3,299 BDT)</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small">Valid Until:</span>
+                        <strong class="text-info" id="receipt-end-date">Sep 18, 2026</strong>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-book w-100" onclick="window.location.reload()">
+                    <i class="bi bi-check2-circle me-1"></i> Done & Refresh Portal
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="adminAddPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-plus-circle text-warning me-2"></i> Add Membership Plan Tier
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('admin_create_membership_plan') }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Plan Name</label>
+                        <input type="text" class="form-control form-control-custom" name="name" placeholder="e.g. VIP Elite Access" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Price ($ USD)</label>
+                            <input type="number" step="0.01" class="form-control form-control-custom" name="price" placeholder="89.99" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Duration (Days)</label>
+                            <input type="number" class="form-control form-control-custom" name="duration_days" value="30" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Features & Amenities</label>
+                        <textarea class="form-control form-control-custom" name="features" rows="3" placeholder="Access details..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Publish Plan Tier</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.payment-method-btn {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+.payment-method-btn:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.08);
+}
+.payment-method-btn.active {
+    border-color: #00ADB5;
+    background: rgba(0, 173, 181, 0.15);
+    box-shadow: 0 0 10px rgba(0, 173, 181, 0.3);
+}
+</style>
+
+<script>
+let gatewayModalInstance = null;
+let receiptModalInstance = null;
+
+function openGatewayModal(planId, planName, price, duration) {
+    document.getElementById('gw-plan-id').value = planId;
+    document.getElementById('gw-plan-name').innerText = planName;
+    document.getElementById('gw-plan-price-usd').innerText = `$${parseFloat(price).toFixed(2)}`;
+    document.getElementById('gw-plan-price-bdt').innerText = `(≈ ৳ ${Math.round(price * 110).toLocaleString()} BDT)`;
+    document.getElementById('gw-plan-duration').innerText = `${duration} Days Access`;
+    
+    selectPaymentMethod('bkash');
+
+    const modalEl = document.getElementById('gatewayModal');
+    gatewayModalInstance = new bootstrap.Modal(modalEl);
+    gatewayModalInstance.show();
+}
+
+function selectPaymentMethod(method) {
+    document.getElementById('gw-selected-method').value = method;
+    ['bkash', 'nagad', 'rocket', 'card'].forEach(m => {
+        const btn = document.getElementById(`btn-method-${m}`);
+        if (btn) {
+            if (m === method) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    const mfsContainer = document.getElementById('mfs-fields-container');
+    const cardContainer = document.getElementById('card-fields-container');
+    const badge = document.getElementById('mfs-logo-badge');
+    const instructions = document.getElementById('mfs-instructions');
+    const lblNumber = document.getElementById('lbl-wallet-number');
+    const lblPin = document.getElementById('lbl-wallet-pin');
+
+    if (method === 'card') {
+        mfsContainer.classList.add('d-none');
+        cardContainer.classList.remove('d-none');
+    } else {
+        cardContainer.classList.add('d-none');
+        mfsContainer.classList.remove('d-none');
+
+        if (method === 'bkash') {
+            badge.style.backgroundColor = '#E2136E';
+            badge.innerText = 'bKash';
+            instructions.innerText = 'Enter your 11-digit bKash wallet number and 5-digit PIN for sandbox simulation.';
+            lblNumber.innerText = 'bKash Account Number';
+            lblPin.innerText = 'bKash PIN (5 Digits)';
+            document.getElementById('gw-wallet-number').placeholder = '017XXXXXXXX';
+        } else if (method === 'nagad') {
+            badge.style.backgroundColor = '#F7941D';
+            badge.innerText = 'Nagad';
+            instructions.innerText = 'Enter your 11-digit Nagad account number and 4-digit PIN for sandbox simulation.';
+            lblNumber.innerText = 'Nagad Account Number';
+            lblPin.innerText = 'Nagad PIN (4 Digits)';
+            document.getElementById('gw-wallet-number').placeholder = '018XXXXXXXX';
+        } else if (method === 'rocket') {
+            badge.style.backgroundColor = '#8C3494';
+            badge.innerText = 'Rocket';
+            instructions.innerText = 'Enter your 12-digit DBBL Rocket number and 4-digit PIN for sandbox simulation.';
+            lblNumber.innerText = 'Rocket Account Number';
+            lblPin.innerText = 'Rocket PIN (4 Digits)';
+            document.getElementById('gw-wallet-number').placeholder = '019XXXXXXXXX';
+        }
+    }
+}
+
+async function processGatewayCheckout(e) {
+    e.preventDefault();
+    const planId = document.getElementById('gw-plan-id').value;
+    const method = document.getElementById('gw-selected-method').value;
+    const btn = document.getElementById('btn-gw-submit');
+    const statusDiv = document.getElementById('simulation-status');
+    const statusText = document.getElementById('simulation-status-text');
+
+    btn.disabled = true;
+    statusDiv.classList.remove('d-none');
+
+    let payload = { payment_method: method };
+    if (method === 'card') {
+        payload.card_number = document.getElementById('gw-card-number').value;
+        payload.card_holder = document.getElementById('gw-card-name').value;
+    } else {
+        payload.account_number = document.getElementById('gw-wallet-number').value;
+        payload.otp = document.getElementById('gw-wallet-otp').value;
+        payload.pin = document.getElementById('gw-wallet-pin').value;
+    }
+
+    try {
+        statusText.innerText = `[1/3] Contacting ${method.toUpperCase()} sandbox switch...`;
+        await new Promise(r => setTimeout(r, 600));
+
+        statusText.innerText = `[2/3] Authorizing credentials & simulated OTP...`;
+        await new Promise(r => setTimeout(r, 600));
+
+        statusText.innerText = `[3/3] Settling transaction & updating membership...`;
+
+        const res = await fetch(`/membership/checkout/${planId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (gatewayModalInstance) gatewayModalInstance.hide();
+            
+            document.getElementById('receipt-trx-id').innerText = data.transaction_id || 'TRX-123456';
+            document.getElementById('receipt-channel').innerText = data.channel_name || method.toUpperCase();
+            document.getElementById('receipt-plan').innerText = data.plan_name;
+            document.getElementById('receipt-amount').innerText = `$${parseFloat(data.amount).toFixed(2)} USD (≈ ৳ ${Math.round(data.amount_bdt || data.amount * 110).toLocaleString()} BDT)`;
+            document.getElementById('receipt-end-date').innerText = data.end_date || 'Active';
+
+            const receiptEl = document.getElementById('receiptModal');
+            receiptModalInstance = new bootstrap.Modal(receiptEl);
+            receiptModalInstance.show();
+        } else {
+            showToast(data.message || 'Payment simulation failed.', 'danger');
+            btn.disabled = false;
+            statusDiv.classList.add('d-none');
+        }
+    } catch (err) {
+        showToast('Network error during checkout.', 'danger');
+        btn.disabled = false;
+        statusDiv.classList.add('d-none');
+    }
+}
+
+async function toggleFreezeMembership() {
+    if (!confirm('Are you sure you want to update your membership freeze status?')) return;
+    try {
+        const res = await fetch('/membership/toggle_freeze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Action failed.', 'danger');
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+    }
+}
+</script>
+{% endblock %}

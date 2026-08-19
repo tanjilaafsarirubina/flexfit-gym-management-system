@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Register Account | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card card-custom p-4 shadow-lg border-0">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-dark p-3 rounded-circle mb-3 border border-secondary border-opacity-25" style="width: 60px; height: 60px;">
+                        <i class="bi bi-person-plus-fill fs-3" style="color: var(--accent-primary);"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Create Your FlexFit Account
+                    </h3>
+                    <p class="text-muted small mb-0">Join FlexFit as a Member or Staff Member</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('register') }}">
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">Full Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person-fill text-info"></i></span>
+                            <input type="text" class="form-control form-control-custom" id="full_name" name="full_name" placeholder="Tanjila Afsari Rubina" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope-fill text-info"></i></span>
+                            <input type="email" class="form-control form-control-custom" id="email" name="email" placeholder="tanjila@flexfit.com" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-telephone-fill text-info"></i></span>
+                            <input type="tel" class="form-control form-control-custom" id="phone" name="phone" placeholder="+880 1700 000000" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Account Role</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-shield-check text-info"></i></span>
+                            <select class="form-select form-select-custom" id="role" name="role" onchange="toggleStaffPasscodeField()" required>
+                                <option value="member" selected>Gym Member (Standard Public Account)</option>
+                                <option value="trainer">Personal Trainer (Requires Staff Passcode)</option>
+                                <option value="admin">System Administrator (Requires Admin Passcode)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="staffPasscodeContainer">
+                        <label for="staff_passcode" class="form-label text-warning"><i class="bi bi-key-fill me-1"></i> Staff / Admin Passcode Required</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-warning text-dark"><i class="bi bi-shield-lock-fill"></i></span>
+                            <input type="password" class="form-control form-control-custom border-warning" id="staff_passcode" name="staff_passcode" placeholder="Enter authorization code">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label">Account Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill text-info"></i></span>
+                            <input type="password" class="form-control form-control-custom" id="password" name="password" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-book mb-3 fw-bold">Create FlexFit Account</button>
+
+                    <div class="text-center border-top border-secondary border-opacity-25 pt-3 mt-2">
+                        <span class="text-muted small">Already have an account? </span>
+                        <a href="{{ url_for('login') }}" class="text-highlight text-decoration-none fw-bold">Sign In Here</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStaffPasscodeField() {
+    const roleSelect = document.getElementById('role');
+    const passcodeContainer = document.getElementById('staffPasscodeContainer');
+    const passcodeInputs = document.getElementById('staff_passcode');
+
+    if (roleSelect.value === 'trainer' || roleSelect.value === 'admin') {
+        passcodeContainer.classList.remove('d-none');
+        passcodeInputs.setAttribute('required', 'required');
+    } else {
+        passcodeContainer.classList.add('d-none');
+        passcodeInputs.removeAttribute('required');
+        passcodeInputs.value = '';
+    }
+}
+</script>
+{% endblock %}

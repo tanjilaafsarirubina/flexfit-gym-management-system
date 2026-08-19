@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container px-4">
+
+    {% if current_user.role == 'trainer' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="welcome-banner" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%); border-color: rgba(245, 158, 11, 0.4);">
+                <h4 class="m-0 fw-bold"><i class="bi bi-person-badge me-2"></i> TRAINER PORTAL: COACH {{ current_user.full_name.upper() }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-calendar-check text-warning me-1"></i> Assigned Classes</div>
+                <div class="stat-value text-warning">{{ trainer_classes|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-people text-info me-1"></i> Active Students</div>
+                <div class="stat-value text-info">{{ trainer_students }} Enrolled</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-calendar2-heart text-primary me-1"></i> 1-on-1 Sessions</div>
+                <div class="stat-value text-primary">{{ trainer_coaching|length }} Booked</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-star-fill text-warning me-1"></i> Client Rating</div>
+                <div class="stat-value text-success">{{ trainer_rating }} ★ <span class="text-muted extra-small fs-6">({{ trainer_rev_count }})</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card card-custom p-4 shadow h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0"><i class="bi bi-clipboard-check text-success me-2"></i> My Group Classes & Attendance</h5>
+                    <a href="{{ url_for('schedule') }}" class="btn btn-outline-light btn-sm">Full Schedule</a>
+                </div>
+                {% if trainer_classes %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Time</th>
+                                <th>Enrolled</th>
+                                <th class="text-end">Roster Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tc in trainer_classes %}
+                            <tr>
+                                <td>
+                                    <span class="category-badge badge-{{ tc.category.lower() }} me-1">{{ tc.category }}</span>
+                                    <strong class="text-white">{{ tc.title }}</strong>
+                                </td>
+                                <td><span class="text-highlight small">{{ tc.start_time.strftime('%a @ %I:%M %p') }}</span></td>
+                                <td><span class="badge bg-dark border border-secondary text-info">{{ tc.booked_count }}/{{ tc.max_capacity }}</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('class_roster', class_id=tc.id) }}" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);">
+                                        <i class="bi bi-check2-square me-1"></i> Take Attendance
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No active gym classes assigned yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card card-custom p-4 shadow h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0"><i class="bi bi-calendar-heart text-info me-2"></i> 1-on-1 Appointments</h5>
+                    <a href="{{ url_for('trainers') }}" class="btn btn-outline-light btn-sm">View All</a>
+                </div>
+                {% if trainer_coaching %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for tc in trainer_coaching[:4] %}
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-25 px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="text-white d-block">{{ tc.client.full_name }}</strong>
+                                <span class="text-highlight small">{{ tc.session_time.strftime('%b %d, %Y @ %I:%M %p') }}</span>
+                                <span class="text-muted extra-small d-block">{{ tc.notes or 'Private Coaching Session' }}</span>
+                            </div>
+                            <span class="badge bg-primary text-uppercase">{{ tc.status }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No upcoming 1-on-1 appointments.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% elif current_user.role == 'admin' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="welcome-banner" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%); border-color: rgba(6, 182, 212, 0.4);">
+                <h4 class="m-0 fw-bold"><i class="bi bi-shield-lock-fill me-2"></i> SYSTEM ADMINISTRATOR: {{ current_user.full_name.upper() }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-people text-info me-1"></i> Total Users</div>
+                <div class="stat-value text-info">{{ total_users_count }} Accounts</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-calendar3 text-success me-1"></i> Active Classes</div>
+                <div class="stat-value text-success">{{ total_classes_count }} Scheduled</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-check-circle text-warning me-1"></i> Total Bookings</div>
+                <div class="stat-value text-warning">{{ total_bookings_count }} Bookings</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-cash-stack text-emerald me-1"></i> System Revenue</div>
+                <div class="stat-value text-white">${{ "{:,.2f}".format(total_revenue) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card card-custom p-4 shadow h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0"><i class="bi bi-activity text-info me-2"></i> Recent Class Reservations</h5>
+                    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm">Admin Panel</a>
+                </div>
+                {% if recent_bookings %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Class</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rb in recent_bookings %}
+                            <tr>
+                                <td><strong class="text-white">{{ rb.user.full_name }}</strong></td>
+                                <td>{{ rb.gym_class.title }}</td>
+                                <td>
+                                    {% if rb.attended %}
+                                        <span class="badge bg-success">Attended</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">{{ rb.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No bookings recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card card-custom p-4 shadow h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-white m-0"><i class="bi bi-person-plus text-success me-2"></i> Recently Registered Users</h5>
+                    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm">Manage Users</a>
+                </div>
+                {% if recent_users %}
+                <div class="table-responsive">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ru in recent_users %}
+                            <tr>
+                                <td><strong class="text-white">{{ ru.full_name }}</strong></td>
+                                <td>{{ ru.email }}</td>
+                                <td><span class="badge bg-secondary text-uppercase">{{ ru.role }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small py-4 text-center">No registered users yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="welcome-banner">
+                <h4 class="m-0 fw-bold">WELCOME BACK, {{ current_user.full_name.upper() }}!</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-credit-card-2-front text-info me-1"></i> Active Membership</div>
+                <div class="stat-value text-success">{{ membership_name }} <span class="badge bg-success text-uppercase" style="font-size: 0.65rem; vertical-align: middle;">({{ membership_status }})</span></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-calendar-check text-warning me-1"></i> Classes Attended</div>
+                <div class="stat-value" id="stat-classes-attended">{{ classes_attended }} Sessions <span class="badge bg-primary text-white" style="font-size: 0.65rem; vertical-align: middle;">({{ upcoming_bookings }} Reserved)</span></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-title"><i class="bi bi-trophy text-primary me-1"></i> Total Weight Lifted</div>
+                <div class="stat-value text-info">{{ "{:,.0f}".format(total_weight) }} kg</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-bar d-flex flex-wrap align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-lightning-charge-fill text-warning fs-5"></i>
+                    <span class="fw-bold text-uppercase tracking-wider">BOOK A CLASS</span>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <span class="text-muted small fw-semibold">Filter:</span>
+                    <a href="{{ url_for('index', category='ALL') }}" class="filter-btn {% if current_category == 'ALL' %}active{% endif %}">[ ALL ]</a>
+                    <a href="{{ url_for('index', category='CARDIO') }}" class="filter-btn {% if current_category == 'CARDIO' %}active{% endif %}">[ CARDIO ]</a>
+                    <a href="{{ url_for('index', category='STRENGTH') }}" class="filter-btn {% if current_category == 'STRENGTH' %}active{% endif %}">[ STRENGTH ]</a>
+                    <a href="{{ url_for('index', category='YOGA') }}" class="filter-btn {% if current_category == 'YOGA' %}active{% endif %}">[ YOGA ]</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        {% if classes %}
+            {% for gym_class in classes %}
+                {% set is_booked = gym_class.is_booked_by_user(current_user.id) %}
+                {% set booked_cnt = gym_class.booked_count %}
+                {% set max_cap = gym_class.max_capacity %}
+                {% set pct = (booked_cnt / max_cap * 100) if max_cap > 0 else 0 %}
+                {% set avg_r, rev_c = gym_class.get_average_rating() %}
+
+                <div class="col-md-6 col-lg-6">
+                    <div class="class-card shadow d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="category-badge badge-{{ gym_class.category.lower() }}">{{ gym_class.category }}</span>
+                            <div class="text-warning small fw-bold">
+                                <i class="bi bi-star-fill"></i> {{ avg_r }} <span class="text-muted extra-small">({{ rev_c }})</span>
+                            </div>
+                        </div>
+
+                        <div class="class-title">{{ gym_class.title }}</div>
+
+                        <div class="class-info-item">
+                            Trainer: <strong>{{ gym_class.trainer.user.full_name if gym_class.trainer and gym_class.trainer.user else 'Staff Coach' }}</strong>
+                        </div>
+
+                        <div class="class-info-item">
+                            Time: <strong>{{ gym_class.start_time.strftime('%A @ %I:%M %p') }}</strong> ({{ gym_class.duration_mins }} mins)
+                        </div>
+
+                        <div class="class-info-item d-flex flex-column gap-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Capacity:</span>
+                                <strong id="spots-count-{{ gym_class.id }}">{{ booked_cnt }}/{{ max_cap }} spots</strong>
+                            </div>
+                            <div class="capacity-progress">
+                                <div id="progress-bar-{{ gym_class.id }}" class="capacity-progress-bar" style="width: {{ pct }}%;"></div>
+                            </div>
+                        </div>
+
+                        {% set has_attended = gym_class.user_has_attended(current_user.id) %}
+                        {% set has_reviewed = gym_class.user_has_reviewed(current_user.id) %}
+
+                        <div class="d-flex gap-2 mt-auto pt-3">
+                            {% if has_reviewed %}
+                                <button type="button" class="btn btn-outline-success btn-sm" disabled title="You have reviewed this class">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Reviewed
+                                </button>
+                            {% elif has_attended %}
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="openClassReviewModal({{ gym_class.id }}, '{{ gym_class.title }}')" title="Leave a review for this attended class">
+                                    <i class="bi bi-star-fill me-1"></i> Review
+                                </button>
+                            {% endif %}
+
+                            {% if is_booked %}
+                                <button type="button" class="btn btn-cancel btn-sm flex-fill" onclick="handleBookingAction({{ gym_class.id }}, 'cancel', this)">
+                                    <i class="bi bi-x-circle me-1"></i> CANCEL BOOKING
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-book btn-sm flex-fill" onclick="handleBookingAction({{ gym_class.id }}, 'book', this)" {% if booked_cnt >= max_cap %}disabled{% endif %}>
+                                    {% if booked_cnt >= max_cap %}FULL CAPACITY{% else %}<i class="bi bi-calendar-plus me-1"></i> BOOK CLASS{% endif %}
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card card-custom p-5 text-center text-muted">
+                    <i class="bi bi-calendar-x fs-1 mb-2 text-warning"></i>
+                    <h5>No classes found for category "{{ current_category }}"</h5>
+                    <p class="small">Try switching category filters to see available weekly sessions.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<div class="modal fade" id="classReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-star-fill text-warning me-2"></i> Review <span id="modal-class-name"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="class-review-form" onsubmit="submitClassReview(event)">
+                    <input type="hidden" id="class-review-id" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label small">Class Rating Score</label>
+                        <select class="form-select form-select-custom" id="class-review-rating" required>
+                            <option value="5" selected>⭐⭐⭐⭐⭐ (5 Stars - Outstanding)</option>
+                            <option value="4">⭐⭐⭐⭐ (4 Stars - Very Good)</option>
+                            <option value="3">⭐⭐⭐ (3 Stars - Average)</option>
+                            <option value="2">⭐⭐ (2 Stars - Below Average)</option>
+                            <option value="1">⭐ (1 Star - Poor)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small">Your Class Experience & Takeaways</label>
+                        <textarea class="form-control form-control-custom" id="class-review-text" rows="3" placeholder="How was the workout intensity, coaching cues, music, and environment?" required></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-class-review-submit" class="btn btn-book w-100">
+                        <i class="bi bi-send me-1"></i> Post Verified Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let classReviewModalInstance = null;
+
+function openClassReviewModal(classId, title) {
+    document.getElementById('class-review-id').value = classId;
+    document.getElementById('modal-class-name').innerText = `"${title}"`;
+    document.getElementById('class-review-text').value = '';
+
+    const modalEl = document.getElementById('classReviewModal');
+    classReviewModalInstance = new bootstrap.Modal(modalEl);
+    classReviewModalInstance.show();
+}
+
+async function submitClassReview(e) {
+    e.preventDefault();
+    const classId = document.getElementById('class-review-id').value;
+    const rating = document.getElementById('class-review-rating').value;
+    const reviewText = document.getElementById('class-review-text').value;
+    const btn = document.getElementById('btn-class-review-submit');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/submit_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: parseInt(classId), rating: parseInt(rating), review_text: reviewText })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showToast(data.message, 'success');
+            if (classReviewModalInstance) classReviewModalInstance.hide();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(data.message || 'Failed to submit review.', 'danger');
+            btn.disabled = false;
+        }
+    } catch (err) {
+        showToast('Network error.', 'danger');
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

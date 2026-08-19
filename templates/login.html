@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In | FlexFit Platform{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card card-custom p-4 shadow-lg border-0">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-dark p-3 rounded-circle mb-3 border border-secondary border-opacity-25" style="width: 60px; height: 60px;">
+                        <i class="bi bi-person-fill text-info fs-3"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Welcome Back
+                    </h3>
+                    <p class="text-muted small mb-0">Sign in to manage your workouts and book classes</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope-fill text-info"></i></span>
+                            <input type="email" class="form-control form-control-custom" id="email" name="email" placeholder="tanjila@flexfit.com" required autofocus>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill text-info"></i></span>
+                            <input type="password" class="form-control form-control-custom" id="password" name="password" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-book mb-3 fw-bold">Sign In to Dashboard</button>
+
+                    <div class="text-center border-top border-secondary border-opacity-25 pt-3 mt-2">
+                        <span class="text-muted small">Don't have an account yet? </span>
+                        <a href="{{ url_for('register') }}" class="text-highlight text-decoration-none fw-bold">Register Now</a>
+                    </div>
+                </form>
+
+                <div class="mt-4 demo-credentials-box">
+                    <p class="mb-2 small fw-bold text-white"><i class="bi bi-key-fill text-warning me-1"></i> Demo Login Accounts:</p>
+                    
+                    <div class="row g-2 extra-small" style="font-size: 0.8rem;">
+                        <div class="col-12 mb-1">
+                            <strong class="text-info d-block"><i class="bi bi-people-fill me-1"></i> Gym Members (Password: password123):</strong>
+                            <div class="ms-2">
+                                1. tanjila@flexfit.com (Tanjila)<br>
+                                2. rahim@flexfit.com (Rahim)<br>
+                                3. nusrat@flexfit.com (Nusrat)
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 mb-1">
+                            <strong class="text-warning d-block"><i class="bi bi-person-badge-fill me-1"></i> Personal Trainers (Password: password123):</strong>
+                            <div class="ms-2">
+                                1. sarah@flexfit.com (Sarah - Yoga)<br>
+                                2. tanvir@flexfit.com (Tanvir - Strength)<br>
+                                3. farhan@flexfit.com (Farhan - HIIT Cardio)
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <strong class="text-emerald d-block" style="color: var(--accent-primary);"><i class="bi bi-shield-lock-fill me-1"></i> System Admin (Password: admin123):</strong>
+                            <div class="ms-2">
+                                admin@flexfit.com (Alex Morgan)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

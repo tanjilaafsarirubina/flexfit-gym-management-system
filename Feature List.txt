@@ -1,0 +1,12 @@
+Full-Stack Gym & Fitness Management Platform
+
+1. User Registration & Multi-Role Support: Secure registration and login supporting roles for Gym Members, Personal Trainers, and System Administrators.
+2. Real-Time Class Scheduling & Booking: Interactive weekly timetable allowing members to browse, filter by workout type, book sessions, or cancel bookings.
+3. Membership Plans & Renewal Portal: Dynamic membership catalog (Monthly, Quarterly, Annual) with renewal tracking, account freezing options, and sandbox payment.
+4. Trainer Profile & Availability Directory: Showcase pages for gym trainers detailing certifications, client ratings, and available time slots for 1-on-1 coaching.
+5. Workout & Progress Tracker: Member portal to log daily exercises, set counts, rep records, weight milestones, and track personal fitness goals over time.
+6. On-Demand Exercise Video Library: Categorized digital video library structured by focus area (Cardio, Strength, Yoga) and difficulty level with search filters.
+7. Interactive Nutrition & Meal Plan Viewer: Admin-managed repository of downloadable and interactive dietary guides customized for different fitness goals.
+8. Member Reviews & Feedback System: Rating system allowing members to leave verified reviews and feedback for specific trainers and fitness classes.
+9. Staff Admin & Content CRUD Panel: Intuitive administrative portal to manage class schedules, update membership pricing, review active members, and upload workout videos.
+10. Fast Mobile-First Responsive UI: Fully responsive interface with AJAX live updates, dynamic schedule filters, modal alerts, and smooth page navigation.

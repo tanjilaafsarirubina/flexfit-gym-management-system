@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlexFit Blueprint - {{ plan.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0b0f17;
+            color: #e2e8f0;
+            padding: 30px 15px;
+        }
+        .document-card {
+            max-width: 860px;
+            margin: 0 auto;
+            background: #111827;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .header-seal {
+            background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .macro-box {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .section-header {
+            border-bottom: 2px solid #374151;
+            padding-bottom: 8px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            color: #38bdf8;
+            font-size: 1.15rem;
+        }
+        .meal-timeline-item {
+            background: #1e293b;
+            border-left: 4px solid #10b981;
+            padding: 14px 18px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 12px;
+        }
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+            }
+            .document-card {
+                background: #ffffff !important;
+                color: #000000 !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .macro-box {
+                background: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+                color: #000000 !important;
+            }
+            .meal-timeline-item {
+                background: #f8fafc !important;
+                border-left: 4px solid #10b981 !important;
+                color: #000000 !important;
+            }
+            .section-header {
+                color: #0f172a !important;
+                border-bottom: 2px solid #000000 !important;
+            }
+            .header-seal {
+                -webkit-text-fill-color: #0f172a !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print text-center mb-4">
+    <button onclick="window.print()" class="btn btn-success btn-lg px-4 py-2 shadow me-2" style="background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); border: none;">
+        <i class="bi bi-printer-fill me-2"></i> Print / Save as PDF
+    </button>
+    <button onclick="window.close()" class="btn btn-outline-secondary btn-lg px-4 py-2">
+        <i class="bi bi-arrow-left me-1"></i> Return to App
+    </button>
+</div>
+
+<div class="document-card">
+    <div class="d-flex justify-content-between align-items-start border-bottom border-secondary border-opacity-50 pb-3 mb-4">
+        <div>
+            <h2 class="header-seal mb-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> FLEXFIT PERFORMANCE LAB</h2>
+            <p class="text-muted small mb-0">Evidence-Based Sports Nutrition & Macronutrient Protocol</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-warning text-dark px-3 py-2 text-uppercase fw-bold">{{ plan.goal }}</span>
+            <div class="text-muted extra-small mt-1" style="font-size: 0.75rem;">Doc Ref: FF-NUTRI-00{{ plan.id }}</div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h3 class="fw-bold text-white mb-2">{{ plan.title }}</h3>
+        <p class="text-muted" style="line-height: 1.6;">{{ plan.description }}</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-3">
+            <div class="macro-box">
+                <span class="text-muted small d-block">Target Energy</span>
+                <strong class="fs-4 text-info">{{ plan.calories_per_day }}</strong>
+                <span class="extra-small text-muted d-block">kcal / day</span>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="macro-box">
+                <span class="text-muted small d-block">Protein Target</span>
+                <strong class="fs-4 text-success">{{ plan.protein_g }}g</strong>
+                <span class="extra-small text-muted d-block">({{ (plan.protein_g * 4 / plan.calories_per_day * 100)|round|int }}% of energy)</span>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="macro-box">
+                <span class="text-muted small d-block">Carbohydrates</span>
+                <strong class="fs-4 text-primary">{{ plan.carbs_g }}g</strong>
+                <span class="extra-small text-muted d-block">({{ (plan.carbs_g * 4 / plan.calories_per_day * 100)|round|int }}% of energy)</span>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="macro-box">
+                <span class="text-muted small d-block">Healthy Fats</span>
+                <strong class="fs-4 text-warning">{{ plan.fat_g }}g</strong>
+                <span class="extra-small text-muted d-block">({{ (plan.fat_g * 9 / plan.calories_per_day * 100)|round|int }}% of energy)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-header">
+        <i class="bi bi-clock-history me-2"></i> Structured Daily Meal Schedule & Nutrient Timing
+    </div>
+
+    <div class="meal-timeline mb-4" style="white-space: pre-line; line-height: 1.8;">
+        {% for line in plan.meal_breakdown.split('\n') %}
+            {% if line.strip() %}
+            <div class="meal-timeline-item">
+                {{ line }}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="section-header">
+        <i class="bi bi-droplet-half me-2"></i> Hydration & Micronutrient Guidelines
+    </div>
+    <div class="row g-3 text-muted small mb-4">
+        <div class="col-md-6">
+            <strong>• Daily Fluid Target:</strong> Minimum 3.5 to 4.0 Liters of filtered water throughout the day.
+        </div>
+        <div class="col-md-6">
+            <strong>• Electrolyte Balance:</strong> 500mg Sodium + 300mg Potassium pre/intra high-intensity training.
+        </div>
+        <div class="col-md-6">
+            <strong>• Fiber Goal:</strong> Maintain at least 32g–38g daily from cruciferous vegetables, berries, and oats.
+        </div>
+        <div class="col-md-6">
+            <strong>• Nutrient Timing:</strong> Consume protein within 45 minutes post-workout to stimulate muscle protein synthesis (MPS).
+        </div>
+    </div>
+
+    <div class="pt-4 border-top border-secondary border-opacity-50 mt-4 d-flex justify-content-between align-items-end">
+        <div>
+            <span class="text-muted extra-small d-block">Prescribing Coach / Specialist:</span>
+            <strong class="text-white">FlexFit Certified Sports Performance Team</strong>
+            <span class="text-muted extra-small d-block">ISSN / NASM Accredited Fitness Facility</span>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-2">
+                <i class="bi bi-patch-check-fill me-1"></i> Verified Evidence-Based Protocol
+            </span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
