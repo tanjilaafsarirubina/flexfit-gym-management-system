@@ -70,11 +70,12 @@
                 <div class="card-body p-4 d-flex flex-column">
                     <h5 class="fw-bold text-white mb-2">{{ vid.title }}</h5>
                     <div class="d-flex gap-2 mt-3">
-                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick="openVideoPlayer('{{ vid.title }}', '{{ vid.video_url }}', '{{ vid.category }}', '{{ vid.difficulty }}', '{{ vid.description | replace('\'', '\\\'') }}')">
+                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick='openVideoPlayer({{ vid.title|tojson }}, {{ vid.video_url|tojson }}, {{ vid.category|tojson }}, {{ vid.difficulty|tojson }}, {{ vid.description|tojson }})'>
                             <i class="bi bi-play-circle-fill me-1"></i> Stream Tutorial
                         </button>
                         {% if current_user.role == 'admin' %}
                         <form method="POST" action="{{ url_for('admin_delete_video', video_id=vid.id) }}" onsubmit="return confirm('Delete this video?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-outline-danger btn-sm">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -132,6 +133,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('trainer_create_video') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Tutorial Title</label>
                         <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. 15-Minute Kettlebell Full Body Burn" required>
@@ -191,10 +193,14 @@ let videoModalInstance = null;
 function openVideoPlayer(title, url, category, difficulty, desc) {
     document.getElementById('video-modal-title').innerText = title;
     document.getElementById('video-modal-desc').innerText = desc;
-    document.getElementById('video-modal-badges').innerHTML = `
-        <span class="category-badge badge-${category.toLowerCase()} me-1">${category}</span>
-        <span class="badge bg-dark border border-secondary text-info">${difficulty}</span>
-    `;
+    const badges = document.getElementById('video-modal-badges');
+    const categoryBadge = document.createElement('span');
+    categoryBadge.className = `category-badge badge-${category.toLowerCase().replace(/[^a-z]/g, '')} me-1`;
+    categoryBadge.textContent = category;
+    const difficultyBadge = document.createElement('span');
+    difficultyBadge.className = 'badge bg-dark border border-secondary text-info';
+    difficultyBadge.textContent = difficulty;
+    badges.replaceChildren(categoryBadge, difficultyBadge);
 
     let embedUrl = url;
     if (url.includes('watch?v=')) {
@@ -203,7 +209,7 @@ function openVideoPlayer(title, url, category, difficulty, desc) {
         embedUrl = url.replace('youtu.be/', 'www.youtube.com/embed/');
     }
 
-    document.getElementById('video-modal-iframe').src = embedUrl;
+    document.getElementById('video-modal-iframe').src = /^https?:\/\//i.test(embedUrl) ? embedUrl : 'about:blank';
 
     const modalEl = document.getElementById('videoModal');
     videoModalInstance = new bootstrap.Modal(modalEl);

@@ -18,6 +18,7 @@
                 </div>
 
                 <form method="POST" action="{{ url_for('register') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="full_name" class="form-label">Full Name</label>
                         <div class="input-group">
@@ -48,8 +49,12 @@
                             <span class="input-group-text"><i class="bi bi-shield-check text-info"></i></span>
                             <select class="form-select form-select-custom" id="role" name="role" onchange="toggleStaffPasscodeField()" required>
                                 <option value="member" selected>Gym Member (Standard Public Account)</option>
+                                {% if staff_signup.trainer %}
                                 <option value="trainer">Personal Trainer (Requires Staff Passcode)</option>
+                                {% endif %}
+                                {% if staff_signup.admin %}
                                 <option value="admin">System Administrator (Requires Admin Passcode)</option>
+                                {% endif %}
                             </select>
                         </div>
                     </div>

@@ -10,8 +10,9 @@ from gym_models import (
 class FlexFitTestCase(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['WTF_CSRF_ENABLED'] = False
+        app.config['TRAINER_INVITE_CODE'] = 'TRAINER2026'
+        app.config['ADMIN_INVITE_CODE'] = 'ADMIN2026'
         self.client = app.test_client()
 
         with app.app_context():
@@ -84,7 +85,7 @@ class FlexFitTestCase(unittest.TestCase):
             db.session.commit()
 
             plan = MembershipPlan.query.first()
-            um = UserMembership(user_id=user.id, plan_id=plan.id, start_date=datetime.utcnow().date(), end_date=datetime.utcnow().date() + timedelta(days=30), status='active')
+            um = UserMembership(user_id=user.id, plan_id=plan.id, start_date=datetime.now().date(), end_date=datetime.now().date() + timedelta(days=30), status='active')
             db.session.add(um)
 
             trainer_user = User(full_name='Coach', email='coach@flexfit.com', phone='12345', role='trainer')
@@ -227,7 +228,7 @@ class FlexFitTestCase(unittest.TestCase):
 
         self.client.post('/login', data={'email': 'client@flexfit.com', 'password': 'pass'})
 
-        future_time = (datetime.utcnow() + timedelta(days=2)).strftime('%Y-%m-%dT10:00')
+        future_time = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%dT10:00')
         res_coach = self.client.post('/api/book_coaching', json={
             'trainer_id': trainer_id,
             'session_time': future_time,
@@ -290,7 +291,7 @@ class FlexFitTestCase(unittest.TestCase):
 
         self.client.post('/login', data={'email': 'adminops@flexfit.com', 'password': 'adminpass'})
 
-        future_time = (datetime.utcnow() + timedelta(days=1)).strftime('%Y-%m-%dT10:00')
+        future_time = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT10:00')
         res_class = self.client.post('/admin/class/create', data={
             'title': 'Admin Test Bootcamp',
             'category': 'Cardio',
@@ -329,7 +330,7 @@ class FlexFitTestCase(unittest.TestCase):
         self.client.get('/logout')
         self.client.post('/login', data={'email': 'sam@flexfit.com', 'password': 'pass'})
 
-        future_trainer_time = (datetime.utcnow() + timedelta(days=2)).strftime('%Y-%m-%dT15:00')
+        future_trainer_time = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%dT15:00')
         res_tr_class = self.client.post('/trainer/class/create', data={
             'title': 'Trainer HIIT Blast',
             'category': 'Cardio',

@@ -48,6 +48,7 @@
             <div class="stat-card">
                 <div class="stat-title">Gross Revenue</div>
                 <div class="stat-value text-emerald">${{ "{:,.0f}".format(total_revenue) }}</div>
+                <div class="text-muted small">{{ payment_count }} sandbox payments</div>
             </div>
         </div>
     </div>
@@ -118,10 +119,11 @@
                                     <a href="{{ url_for('class_roster', class_id=c.id) }}" class="btn btn-outline-success btn-sm me-1">
                                         <i class="bi bi-clipboard-check"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="openEditClassModal({{ c.id }}, '{{ c.title }}', '{{ c.category }}', {{ c.trainer_id }}, '{{ c.start_time.strftime('%Y-%m-%dT%H:%M') }}', {{ c.duration_mins }}, {{ c.max_capacity }})">
+                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick='openEditClassModal({{ c.id }}, {{ c.title|tojson }}, {{ c.category|tojson }}, {{ c.trainer_id }}, {{ c.start_time.strftime('%Y-%m-%dT%H:%M')|tojson }}, {{ c.duration_mins }}, {{ c.max_capacity }})'>
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form method="POST" action="{{ url_for('admin_delete_class', class_id=c.id) }}" class="d-inline" onsubmit="return confirm('Delete this class?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -160,10 +162,11 @@
                                 <td><span class="category-badge badge-{{ v.category.lower() }}">{{ v.category }}</span></td>
                                 <td><span class="badge bg-dark border border-secondary text-info">{{ v.difficulty }}</span></td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="openEditVideoModal({{ v.id }}, '{{ v.title }}', '{{ v.category }}', '{{ v.difficulty }}', '{{ v.video_url }}', '{{ v.thumbnail_url }}', '{{ v.description | replace('\'', '\\\'') }}')">
+                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick='openEditVideoModal({{ v.id }}, {{ v.title|tojson }}, {{ v.category|tojson }}, {{ v.difficulty|tojson }}, {{ v.video_url|tojson }}, {{ v.thumbnail_url|tojson }}, {{ v.description|tojson }})'>
                                         <i class="bi bi-pencil"></i>
                                     </button>
                                     <form method="POST" action="{{ url_for('admin_delete_video', video_id=v.id) }}" class="d-inline" onsubmit="return confirm('Delete this video?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -206,6 +209,7 @@
                                         <i class="bi bi-file-earmark-arrow-down-fill"></i>
                                     </a>
                                     <form method="POST" action="{{ url_for('admin_delete_meal_plan', plan_id=mp.id) }}" class="d-inline" onsubmit="return confirm('Delete this meal plan?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -248,6 +252,7 @@
                                 </td>
                                 <td>
                                     <form method="POST" action="{{ url_for('admin_update_user_role', user_id=u.id) }}" class="d-flex gap-2 align-items-center">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <select name="role" class="form-select form-select-sm form-select-custom py-0" style="width: 110px;">
                                             <option value="member" {% if u.role == 'member' %}selected{% endif %}>Member</option>
                                             <option value="trainer" {% if u.role == 'trainer' %}selected{% endif %}>Trainer</option>
@@ -289,7 +294,11 @@
                                 <td><span class="badge bg-dark border border-secondary text-info">{{ p.duration_days }} Days</span></td>
                                 <td><span class="text-muted small">{{ p.features }}</span></td>
                                 <td class="text-end">
+                                    <button type="button" class="btn btn-outline-info btn-sm me-1" onclick='openEditPlanModal({{ p.id }}, {{ p.name|tojson }}, {{ p.price }}, {{ p.duration_days }}, {{ p.features|tojson }})'>
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
                                     <form method="POST" action="{{ url_for('admin_delete_membership_plan', plan_id=p.id) }}" class="d-inline" onsubmit="return confirm('Delete this membership tier?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -338,6 +347,7 @@
                                 <td><span class="text-subtle small">{{ fb.created_at.strftime('%b %d, %Y') }}</span></td>
                                 <td class="text-end">
                                     <form method="POST" action="{{ url_for('admin_delete_feedback', feedback_id=fb.id) }}" class="d-inline" onsubmit="return confirm('Remove this review from platform?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -365,6 +375,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('admin_create_class') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Class Title</label>
                         <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Morning Tabata HIIT" required>
@@ -417,6 +428,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('admin_create_membership_plan') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Tier Name</label>
                         <input type="text" class="form-control form-control-custom" name="name" placeholder="e.g. VIP Platinum Access" required>
@@ -451,6 +463,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('admin_create_video') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Video Title</label>
                         <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. 20-Min Core Crusher" required>
@@ -501,6 +514,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('admin_create_meal_plan') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Meal Plan Title</label>
                         <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Clean Bulking Blueprint" required>
@@ -557,6 +571,7 @@
             </div>
             <div class="modal-body">
                 <form id="edit-class-form" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Class Title</label>
                         <input type="text" class="form-control form-control-custom" id="edit-class-title" name="title" required>
@@ -600,7 +615,113 @@
     </div>
 </div>
 
+<div class="modal fade" id="editVideoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Edit Exercise Video</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-video-form" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Video Title</label>
+                        <input type="text" class="form-control form-control-custom" id="edit-video-title" name="title" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-custom" id="edit-video-category" name="category" required>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Strength">Strength</option>
+                                <option value="Yoga">Yoga</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Difficulty</label>
+                            <select class="form-select form-select-custom" id="edit-video-difficulty" name="difficulty" required>
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">YouTube Embed / Video URL</label>
+                        <input type="url" class="form-control form-control-custom" id="edit-video-url" name="video_url" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Thumbnail Image URL</label>
+                        <input type="url" class="form-control form-control-custom" id="edit-video-thumbnail" name="thumbnail_url">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Description</label>
+                        <textarea class="form-control form-control-custom" id="edit-video-description" name="description" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Save Video Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-custom text-light border-0 shadow-lg">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold">Edit Membership Tier</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-plan-form" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label small">Tier Name</label>
+                        <input type="text" class="form-control form-control-custom" id="edit-plan-name" name="name" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Price ($ USD)</label>
+                            <input type="number" step="0.01" min="0.01" class="form-control form-control-custom" id="edit-plan-price" name="price" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Duration (Days)</label>
+                            <input type="number" min="1" class="form-control form-control-custom" id="edit-plan-duration" name="duration_days" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Features & Included Amenities</label>
+                        <textarea class="form-control form-control-custom" id="edit-plan-features" name="features" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-book w-100">Save Tier Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+function openEditVideoModal(id, title, category, difficulty, videoUrl, thumbnailUrl, description) {
+    document.getElementById('edit-video-form').action = `/admin/video/edit/${id}`;
+    document.getElementById('edit-video-title').value = title;
+    document.getElementById('edit-video-category').value = category;
+    document.getElementById('edit-video-difficulty').value = difficulty;
+    document.getElementById('edit-video-url').value = videoUrl;
+    document.getElementById('edit-video-thumbnail').value = thumbnailUrl || '';
+    document.getElementById('edit-video-description').value = description || '';
+    new bootstrap.Modal(document.getElementById('editVideoModal')).show();
+}
+
+function openEditPlanModal(id, name, price, durationDays, features) {
+    document.getElementById('edit-plan-form').action = `/admin/membership_plan/edit/${id}`;
+    document.getElementById('edit-plan-name').value = name;
+    document.getElementById('edit-plan-price').value = price;
+    document.getElementById('edit-plan-duration').value = durationDays;
+    document.getElementById('edit-plan-features').value = features || '';
+    new bootstrap.Modal(document.getElementById('editPlanModal')).show();
+}
+
 function openEditClassModal(id, title, category, trainerId, startTime, duration, cap) {
     document.getElementById('edit-class-form').action = `/admin/class/edit/${id}`;
     document.getElementById('edit-class-title').value = title;

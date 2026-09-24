@@ -5,6 +5,17 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+
+def local_now():
+    """The gym's wall-clock time. Every timestamp in the app is stored as a naive local datetime,
+    which is also what the browser's datetime-local inputs send."""
+    return datetime.now()
+
+
+def local_today():
+    return local_now().date()
+
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     
@@ -14,7 +25,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='member')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=local_now)
 
     trainer_profile = db.relationship('TrainerProfile', backref='user', uselist=False)
     memberships = db.relationship('UserMembership', backref='user', lazy=True)
@@ -30,7 +41,11 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def get_active_membership(self):
-        return UserMembership.query.filter(UserMembership.user_id == self.id, UserMembership.status.in_(['active', 'frozen'])).order_by(UserMembership.end_date.desc()).first()
+        return UserMembership.query.filter(
+            UserMembership.user_id == self.id,
+            UserMembership.status.in_(['active', 'frozen']),
+            UserMembership.end_date >= local_today()
+        ).order_by(UserMembership.end_date.desc()).first()
 
     def get_classes_attended_count(self):
         return ClassBooking.query.filter_by(user_id=self.id, attended=True).count()
@@ -111,13 +126,13 @@ class UserMembership(db.Model):
 
     @property
     def days_remaining(self):
-        today = datetime.utcnow().date()
+        today = local_today()
         rem = (self.end_date - today).days
         return max(0, rem)
 
     @property
     def is_expired(self):
-        return datetime.utcnow().date() > self.end_date
+        return local_today() > self.end_date
 
 
 class GymClass(db.Model):
@@ -168,7 +183,7 @@ class ClassBooking(db.Model):
     class_id = db.Column(db.Integer, db.ForeignKey('gym_classes.id'), nullable=False)
     status = db.Column(db.String(20), default='booked')
     attended = db.Column(db.Boolean, default=False)
-    booked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    booked_at = db.Column(db.DateTime, default=local_now)
 
 
 class TrainerAvailability(db.Model):
@@ -203,7 +218,7 @@ class ExerciseVideo(db.Model):
     video_url = db.Column(db.String(255), nullable=False)
     thumbnail_url = db.Column(db.String(255), nullable=True)
     description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=local_now)
 
 
 class MealPlan(db.Model):
@@ -219,7 +234,7 @@ class MealPlan(db.Model):
     pdf_url = db.Column(db.String(255), nullable=True)
     description = db.Column(db.Text, nullable=True)
     meal_breakdown = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=local_now)
 
 
 class WorkoutLog(db.Model):
@@ -231,7 +246,7 @@ class WorkoutLog(db.Model):
     sets = db.Column(db.Integer, nullable=False)
     reps = db.Column(db.Integer, nullable=False)
     weight_kg = db.Column(db.Float, nullable=False)
-    log_date = db.Column(db.Date, default=datetime.utcnow)
+    log_date = db.Column(db.Date, default=local_today)
 
 
 class Feedback(db.Model):
@@ -243,4 +258,18 @@ class Feedback(db.Model):
     class_id = db.Column(db.Integer, db.ForeignKey('gym_classes.id'), nullable=True)
     rating = db.Column(db.Integer, nullable=False)
     review_text = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=local_now)
+
+
+class Payment(db.Model):
+    __tablename__ = 'payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    plan_name = db.Column(db.String(50), nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    method = db.Column(db.String(20), nullable=False)
+    transaction_id = db.Column(db.String(40), nullable=False)
+    paid_at = db.Column(db.DateTime, default=local_now)
+
+    user = db.relationship('User', backref='payments', lazy=True)

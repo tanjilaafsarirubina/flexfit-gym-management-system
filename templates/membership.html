@@ -58,7 +58,7 @@
                                     <i class="bi bi-fire me-1"></i> Unfreeze & Reactivate
                                 {% endif %}
                             </button>
-                            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick="openGatewayModal({{ user_membership.plan.id }}, '{{ user_membership.plan.name }}', {{ user_membership.plan.price }}, {{ user_membership.plan.duration_days }})">
+                            <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick='openGatewayModal({{ user_membership.plan.id }}, {{ user_membership.plan.name|tojson }}, {{ user_membership.plan.price }}, {{ user_membership.plan.duration_days }})'>
                                 <i class="bi bi-arrow-repeat me-1"></i> Renew Plan
                             </button>
                         </div>
@@ -88,17 +88,18 @@
                 
                 {% if current_user.role == 'admin' %}
                 <div class="d-flex gap-2 mt-auto">
-                    <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick="openGatewayModal({{ plan.id }}, '{{ plan.name }}', {{ plan.price }}, {{ plan.duration_days }})">
+                    <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick='openGatewayModal({{ plan.id }}, {{ plan.name|tojson }}, {{ plan.price }}, {{ plan.duration_days }})'>
                         <i class="bi bi-credit-card me-1"></i> Test Gateway
                     </button>
                     <form method="POST" action="{{ url_for('admin_delete_membership_plan', plan_id=plan.id) }}" onsubmit="return confirm('Delete this plan tier?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-danger btn-sm">
                             <i class="bi bi-trash"></i>
                         </button>
                     </form>
                 </div>
                 {% else %}
-                <button type="button" class="btn btn-book mt-auto" onclick="openGatewayModal({{ plan.id }}, '{{ plan.name }}', {{ plan.price }}, {{ plan.duration_days }})">
+                <button type="button" class="btn btn-book mt-auto" onclick='openGatewayModal({{ plan.id }}, {{ plan.name|tojson }}, {{ plan.price }}, {{ plan.duration_days }})'>
                     <i class="bi bi-wallet2 me-1"></i> Pay with bKash / Nagad / Card
                 </button>
                 {% endif %}
@@ -321,6 +322,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('admin_create_membership_plan') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Plan Name</label>
                         <input type="text" class="form-control form-control-custom" name="name" placeholder="e.g. VIP Elite Access" required>
@@ -406,6 +408,8 @@ function selectPaymentMethod(method) {
     } else {
         cardContainer.classList.add('d-none');
         mfsContainer.classList.remove('d-none');
+        // Rocket numbers are 12 digits; bKash and Nagad are 11.
+        document.getElementById('gw-wallet-number').maxLength = method === 'rocket' ? 12 : 11;
 
         if (method === 'bkash') {
             badge.style.backgroundColor = '#E2136E';
@@ -464,7 +468,7 @@ async function processGatewayCheckout(e) {
 
         const res = await fetch(`/membership/checkout/${planId}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify(payload)
         });
         const data = await res.json();
@@ -498,7 +502,7 @@ async function toggleFreezeMembership() {
     try {
         const res = await fetch('/membership/toggle_freeze', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: jsonHeaders()
         });
         const data = await res.json();
         if (res.ok && data.success) {

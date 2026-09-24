@@ -88,7 +88,7 @@
                                             <i class="bi bi-check-circle-fill"></i>
                                         </button>
                                     {% elif has_attended %}
-                                        <button type="button" class="btn btn-outline-warning btn-sm me-1" onclick="openClassReviewModal({{ c.id }}, '{{ c.title }}')" title="Review this attended class">
+                                        <button type="button" class="btn btn-outline-warning btn-sm me-1" onclick='openClassReviewModal({{ c.id }}, {{ c.title|tojson }})' title="Review this attended class">
                                             <i class="bi bi-star-fill me-1"></i> Review
                                         </button>
                                     {% endif %}
@@ -143,6 +143,7 @@
             </div>
             <div class="modal-body">
                 <form method="POST" action="{{ url_for('trainer_create_class') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label small">Class Title</label>
                         <input type="text" class="form-control form-control-custom" name="title" placeholder="e.g. Sunrise Vinyasa Yoga Flow" required>
@@ -259,7 +260,7 @@ async function submitClassReview(e) {
     try {
         const res = await fetch('/api/submit_feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ class_id: parseInt(classId), rating: parseInt(rating), review_text: reviewText })
         });
         const data = await res.json();

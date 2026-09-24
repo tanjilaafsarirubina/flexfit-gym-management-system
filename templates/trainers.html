@@ -19,7 +19,7 @@
             <p class="text-muted small">Manage client consultation appointments, document training takeaways, adjust your coaching rates, and view verified reviews.</p>
         </div>
         {% if my_profile %}
-        <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick="openEditProfileModal('{{ my_profile.specialization }}', {{ my_profile.hourly_rate }}, '{{ my_profile.bio | replace('\'', '\\\'') }}')">
+        <button type="button" class="btn btn-emerald btn-sm text-white" style="background: var(--accent-gradient);" onclick='openEditProfileModal({{ my_profile.specialization|tojson }}, {{ my_profile.hourly_rate }}, {{ my_profile.bio|tojson }})'>
             <i class="bi bi-gear-fill me-1"></i> Edit My Profile & Rates
         </button>
         {% endif %}
@@ -102,7 +102,7 @@
                                     <span class="text-muted small fst-italic">{{ appt.notes or 'No specific notes provided.' }}</span>
                                 </td>
                                 <td class="text-end">
-                                    <button type="button" class="btn btn-emerald btn-sm text-white me-1" style="background: var(--accent-gradient);" onclick="openCompleteSessionModal({{ appt.id }}, '{{ appt.client.full_name }}', '{{ appt.notes | replace('\'', '\\\'') if appt.notes else '' }}')">
+                                    <button type="button" class="btn btn-emerald btn-sm text-white me-1" style="background: var(--accent-gradient);" onclick='openCompleteSessionModal({{ appt.id }}, {{ appt.client.full_name|tojson }}, {{ (appt.notes or '')|tojson }})'>
                                         <i class="bi bi-check-lg me-1"></i> Complete
                                     </button>
                                     <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelCoachingSession({{ appt.id }})">
@@ -288,7 +288,7 @@
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </button>
                             {% elif cs.status == 'completed' and not cs.trainer.user_has_reviewed(current_user.id) %}
-                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="openReviewModal({{ cs.trainer.id }}, 'trainer', '{{ cs.trainer.user.full_name }}')">
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick='openReviewModal({{ cs.trainer.id }}, "trainer", {{ cs.trainer.user.full_name|tojson }})'>
                                 <i class="bi bi-star-fill me-1"></i> Review Coach
                             </button>
                             {% elif cs.status == 'completed' and cs.trainer.user_has_reviewed(current_user.id) %}
@@ -355,15 +355,15 @@
                                 <i class="bi bi-check-circle-fill me-1"></i> Reviewed
                             </button>
                         {% elif can_review_coach %}
-                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" onclick="openReviewModal({{ trainer.id }}, 'trainer', '{{ trainer.user.full_name }}')" title="Review this instructor">
+                            <button type="button" class="btn btn-outline-warning btn-sm flex-fill" onclick='openReviewModal({{ trainer.id }}, "trainer", {{ trainer.user.full_name|tojson }})' title="Review this instructor">
                                 <i class="bi bi-star-fill me-1"></i> Review Coach
                             </button>
                         {% endif %}
-                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick="openCoachingModal({{ trainer.id }}, '{{ trainer.user.full_name }}', {{ trainer.hourly_rate }})">
+                        <button type="button" class="btn btn-book btn-sm flex-fill" onclick='openCoachingModal({{ trainer.id }}, {{ trainer.user.full_name|tojson }}, {{ trainer.hourly_rate }})'>
                             <i class="bi bi-calendar-plus me-1"></i> Book 1-on-1
                         </button>
                     {% elif current_user.role == 'admin' %}
-                        <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick="openAdminEditCoachModal({{ trainer.id }}, '{{ trainer.user.full_name }}', '{{ trainer.specialization }}', {{ trainer.hourly_rate }}, '{{ trainer.bio | replace('\'', '\\\'') }}')">
+                        <button type="button" class="btn btn-outline-info btn-sm flex-fill" onclick='openAdminEditCoachModal({{ trainer.id }}, {{ trainer.user.full_name|tojson }}, {{ trainer.specialization|tojson }}, {{ trainer.hourly_rate }}, {{ trainer.bio|tojson }})'>
                             <i class="bi bi-person-gear me-1"></i> Edit Profile & Rate
                         </button>
                         <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm flex-fill">
@@ -596,7 +596,7 @@ async function submitAdminEditCoach(e) {
     try {
         const res = await fetch('/api/update_trainer_profile', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ trainer_id: parseInt(trainerId), specialization: spec, hourly_rate: rate, bio: bio })
         });
         const data = await res.json();
@@ -619,8 +619,10 @@ function openCoachingModal(trainerId, trainerName, rate) {
     document.getElementById('coach-modal-name').innerText = trainerName;
     document.getElementById('coach-modal-rate').innerText = `$${parseFloat(rate).toFixed(2)}/hr`;
 
+    // Default to this time tomorrow, in the browser's local time (toISOString alone would give UTC).
     const now = new Date();
     now.setHours(now.getHours() + 24);
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     const dateFormatted = now.toISOString().slice(0, 16);
     document.getElementById('coach-modal-time').value = dateFormatted;
 
@@ -642,7 +644,7 @@ async function submitCoachingBooking(e) {
     try {
         const res = await fetch('/api/book_coaching', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ trainer_id: trainerId, session_time: sessionTime, notes: notes })
         });
         const data = await res.json();
@@ -683,7 +685,7 @@ async function submitCompleteSession(e) {
     try {
         const res = await fetch(`/api/update_coaching_status/${id}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ status: 'completed', notes: notes })
         });
         const data = await res.json();
@@ -704,7 +706,7 @@ async function submitCompleteSession(e) {
 async function cancelCoachingSession(sessionId) {
     if (!confirm('Are you sure you want to cancel this appointment?')) return;
     try {
-        const res = await fetch(`/api/cancel_coaching/${sessionId}`, { method: 'POST' });
+        const res = await fetch(`/api/cancel_coaching/${sessionId}`, { method: 'POST', headers: jsonHeaders() });
         const data = await res.json();
         if (res.ok && data.success) {
             showToast(data.message, 'success');
@@ -739,7 +741,7 @@ async function submitEditProfile(e) {
     try {
         const res = await fetch('/api/update_trainer_profile', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ specialization: spec, hourly_rate: rate, bio: bio })
         });
         const data = await res.json();
@@ -790,7 +792,7 @@ async function submitReview(e) {
     try {
         const res = await fetch('/api/submit_feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify(payload)
         });
         const data = await res.json();

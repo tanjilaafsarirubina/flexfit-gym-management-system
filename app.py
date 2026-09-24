@@ -1,22 +1,57 @@
+import hmac
 import os
 import random
+import secrets
 from datetime import datetime, timedelta
 from functools import wraps
+from urllib.parse import urlsplit
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from sqlalchemy import func
 from gym_models import (
     db, User, TrainerProfile, MembershipPlan, UserMembership,
     GymClass, ClassBooking, TrainerAvailability, CoachingSession,
-    ExerciseVideo, MealPlan, WorkoutLog, Feedback
+    ExerciseVideo, MealPlan, WorkoutLog, Feedback, Payment,
+    local_now, local_today
 )
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'flexfit-secret-key-2026')
+app = Flask(__name__, instance_relative_config=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f"sqlite:///{os.path.join(basedir, 'flexfit.db')}")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # token lives as long as the session
+
+# Secrets never live in the repo. Set them as environment variables or in instance/config.py (git-ignored).
+# Staff sign-up stays disabled until an invite code is configured; admins can still promote users.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['TRAINER_INVITE_CODE'] = os.environ.get('TRAINER_INVITE_CODE')
+app.config['ADMIN_INVITE_CODE'] = os.environ.get('ADMIN_INVITE_CODE')
+app.config.from_pyfile('config.py', silent=True)
+
+
+def _load_or_create_secret_key():
+    """Keep a random per-install key in instance/secret_key so sessions survive restarts."""
+    key_file = os.path.join(app.instance_path, 'secret_key')
+    if os.path.exists(key_file):
+        with open(key_file) as f:
+            return f.read().strip()
+    os.makedirs(app.instance_path, exist_ok=True)
+    key = secrets.token_hex(32)
+    with open(key_file, 'w') as f:
+        f.write(key)
+    return key
+
+
+if not app.config['SECRET_KEY']:
+    app.config['SECRET_KEY'] = _load_or_create_secret_key()
 
 db.init_app(app)
+csrf = CSRFProtect(app)
+
+with app.app_context():
+    db.create_all()
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -40,10 +75,54 @@ def role_required(*roles):
     return decorator
 
 
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    message = 'Your session expired or the page was out of date. Please reload and try again.'
+    if request.is_json:
+        return jsonify({'success': False, 'message': message}), 400
+    flash(message, 'danger')
+    return redirect(url_for('index'))
+
+
+def safe_next_url(target):
+    """Only follow ?next= to a path on this site, never to another host."""
+    if not target or not target.startswith('/') or target.startswith('//') or '\\' in target:
+        return None
+    parts = urlsplit(target)
+    return target if not parts.scheme and not parts.netloc else None
+
+
+def is_http_url(value):
+    parts = urlsplit(value or '')
+    return parts.scheme in ('http', 'https') and bool(parts.netloc)
+
+
+def staff_code_matches(role, submitted):
+    expected = app.config.get('TRAINER_INVITE_CODE' if role == 'trainer' else 'ADMIN_INVITE_CODE')
+    return bool(expected) and hmac.compare_digest(submitted.encode(), str(expected).encode())
+
+
+def valid_macros(calories, *grams):
+    return bool(calories) and calories >= 1 and all(g is not None and g >= 0 for g in grams)
+
+
+def sandbox_revenue():
+    return float(db.session.query(func.coalesce(func.sum(Payment.amount), 0)).scalar())
+
+
+def payment_count():
+    return Payment.query.count()
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+
+    staff_signup = {
+        'trainer': bool(app.config.get('TRAINER_INVITE_CODE')),
+        'admin': bool(app.config.get('ADMIN_INVITE_CODE')),
+    }
 
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
@@ -54,25 +133,25 @@ def register():
 
         if not full_name or not email or not password or not phone:
             flash('All fields are required.', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', staff_signup=staff_signup)
 
         staff_passcode = request.form.get('staff_passcode', '').strip()
 
         if role not in ['member', 'trainer', 'admin']:
             role = 'member'
 
-        if role == 'trainer' and staff_passcode != 'TRAINER2026':
+        if role == 'trainer' and not staff_code_matches('trainer', staff_passcode):
             flash('Invalid Staff Invite Passcode for Personal Trainer registration.', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', staff_signup=staff_signup)
 
-        if role == 'admin' and staff_passcode != 'ADMIN2026':
+        if role == 'admin' and not staff_code_matches('admin', staff_passcode):
             flash('Invalid Admin Passcode for System Administrator registration.', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', staff_signup=staff_signup)
 
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             flash('Email address is already registered.', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', staff_signup=staff_signup)
 
         user = User(
             full_name=full_name,
@@ -101,8 +180,8 @@ def register():
                 user_membership = UserMembership(
                     user_id=user.id,
                     plan_id=default_plan.id,
-                    start_date=datetime.utcnow().date(),
-                    end_date=(datetime.utcnow() + timedelta(days=30)).date(),
+                    start_date=local_today(),
+                    end_date=local_today() + timedelta(days=30),
                     status='active'
                 )
                 db.session.add(user_membership)
@@ -111,7 +190,7 @@ def register():
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('login'))
 
-    return render_template('register.html')
+    return render_template('register.html', staff_signup=staff_signup)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -127,7 +206,7 @@ def login():
         if user and user.check_password(password):
             login_user(user)
             flash(f'Welcome back, {user.full_name.split()[0]}!', 'success')
-            next_page = request.args.get('next')
+            next_page = safe_next_url(request.args.get('next'))
             return redirect(next_page or url_for('index'))
         else:
             flash('Invalid email or password.', 'danger')
@@ -185,10 +264,8 @@ def index():
     if current_user.role == 'admin':
         total_users_count = User.query.count()
         total_classes_count = GymClass.query.count()
-        all_b = ClassBooking.query.all()
-        total_bookings_count = len(all_b)
-        all_plans = MembershipPlan.query.all()
-        total_revenue = sum(b.gym_class.duration_mins * 0.5 for b in all_b if b.attended) + sum(float(p.price) for p in all_plans)
+        total_bookings_count = ClassBooking.query.count()
+        total_revenue = sandbox_revenue()
         recent_bookings = ClassBooking.query.order_by(ClassBooking.id.desc()).limit(6).all()
         recent_users = User.query.order_by(User.id.desc()).limit(6).all()
 
@@ -320,7 +397,7 @@ def tracker():
         reps = request.form.get('reps', type=int)
         weight_kg = request.form.get('weight_kg', type=float)
 
-        if not exercise_name or not sets or not reps or weight_kg is None:
+        if not exercise_name or not sets or not reps or weight_kg is None or sets < 1 or reps < 1 or weight_kg < 0:
             flash('Please fill in all workout log fields correctly.', 'danger')
         else:
             workout_log = WorkoutLog(
@@ -329,7 +406,7 @@ def tracker():
                 sets=sets,
                 reps=reps,
                 weight_kg=weight_kg,
-                log_date=datetime.utcnow().date()
+                log_date=local_today()
             )
             db.session.add(workout_log)
             db.session.commit()
@@ -383,7 +460,7 @@ def membership_checkout(plan_id):
     pin = str(data.get('pin', '')).strip()
 
     if payment_method == 'bkash':
-        if len(account_number) != 11 or not account_number.startswith('01'):
+        if len(account_number) != 11 or not account_number.isdigit() or not account_number.startswith('01'):
             return jsonify({'success': False, 'message': 'Please enter a valid 11-digit bKash number (e.g. 017XXXXXXXX).'}), 400
         if len(pin) < 4:
             return jsonify({'success': False, 'message': 'Please enter your 5-digit bKash PIN.'}), 400
@@ -391,7 +468,7 @@ def membership_checkout(plan_id):
         channel_name = "bKash Merchant Gateway"
 
     elif payment_method == 'nagad':
-        if len(account_number) != 11 or not account_number.startswith('01'):
+        if len(account_number) != 11 or not account_number.isdigit() or not account_number.startswith('01'):
             return jsonify({'success': False, 'message': 'Please enter a valid 11-digit Nagad number (e.g. 018XXXXXXXX).'}), 400
         if len(pin) < 4:
             return jsonify({'success': False, 'message': 'Please enter your 4-digit Nagad PIN.'}), 400
@@ -399,7 +476,7 @@ def membership_checkout(plan_id):
         channel_name = "Nagad Direct Pay Gateway"
 
     elif payment_method == 'rocket':
-        if len(account_number) < 11:
+        if len(account_number) < 11 or not account_number.isdigit():
             return jsonify({'success': False, 'message': 'Please enter a valid 12-digit DBBL Rocket number.'}), 400
         if len(pin) < 4:
             return jsonify({'success': False, 'message': 'Please enter your 4-digit Rocket PIN.'}), 400
@@ -409,12 +486,12 @@ def membership_checkout(plan_id):
     else:
         payment_method = 'card'
         raw_card = card_number or account_number
-        if len(raw_card) < 12:
+        if len(raw_card) < 12 or not raw_card.isdigit():
             return jsonify({'success': False, 'message': 'Please enter a valid 16-digit card number for sandbox payment.'}), 400
         trx_id = f"VISA{random.randint(10000000, 99999999)}"
         channel_name = "Visa / Mastercard 3D Secure"
 
-    today = datetime.utcnow().date()
+    today = local_today()
     current_mem = current_user.get_active_membership()
 
     if current_mem and not current_mem.is_expired:
@@ -434,6 +511,13 @@ def membership_checkout(plan_id):
         db.session.add(new_mem)
         new_end = today + timedelta(days=plan.duration_days)
 
+    db.session.add(Payment(
+        user_id=current_user.id,
+        plan_name=plan.name,
+        amount=plan.price,
+        method=payment_method,
+        transaction_id=trx_id
+    ))
     db.session.commit()
 
     return jsonify({
@@ -509,7 +593,7 @@ def book_coaching_api():
     except ValueError:
         return jsonify({'success': False, 'message': 'Invalid date format. Use YYYY-MM-DDTHH:MM.'}), 400
 
-    if session_time < datetime.utcnow():
+    if session_time < local_now():
         return jsonify({'success': False, 'message': 'Cannot schedule appointments in the past.'}), 400
 
     coaching_session = CoachingSession(
@@ -598,15 +682,18 @@ def update_trainer_profile_api():
     specialization = str(data.get('specialization', '')).strip()
     hourly_rate = data.get('hourly_rate')
 
+    if hourly_rate:
+        try:
+            hourly_rate = float(hourly_rate)
+        except (TypeError, ValueError):
+            hourly_rate = 0
+        if hourly_rate <= 0:
+            return jsonify({'success': False, 'message': 'Hourly rate must be a positive number.'}), 400
+        profile.hourly_rate = hourly_rate
     if bio:
         profile.bio = bio
     if specialization:
         profile.specialization = specialization
-    if hourly_rate:
-        try:
-            profile.hourly_rate = float(hourly_rate)
-        except ValueError:
-            pass
 
     db.session.commit()
     return jsonify({'success': True, 'message': 'Trainer profile updated successfully.'})
@@ -718,7 +805,7 @@ def submit_feedback_api():
         class_id=int(class_id) if class_id else None,
         rating=rating,
         review_text=review_text,
-        created_at=datetime.utcnow()
+        created_at=local_now()
     )
     db.session.add(feedback)
     db.session.commit()
@@ -760,8 +847,6 @@ def admin_panel():
     all_feedbacks = Feedback.query.order_by(Feedback.id.desc()).all()
     all_coaching = CoachingSession.query.order_by(CoachingSession.session_time.desc()).all()
 
-    total_revenue = sum(b.gym_class.duration_mins * 0.5 for b in all_bookings if b.attended) + sum(float(p.price) for p in all_plans)
-
     return render_template(
         'admin.html',
         users=all_users,
@@ -773,7 +858,8 @@ def admin_panel():
         plans=all_plans,
         feedbacks=all_feedbacks,
         coaching_sessions=all_coaching,
-        total_revenue=total_revenue
+        total_revenue=sandbox_revenue(),
+        payment_count=payment_count()
     )
 
 
@@ -786,8 +872,8 @@ def admin_create_membership_plan():
     duration_days = request.form.get('duration_days', 30, type=int)
     features = request.form.get('features', '').strip()
 
-    if not name or price <= 0:
-        flash('Plan name and valid price are required.', 'danger')
+    if not name or price is None or price <= 0 or not duration_days or duration_days < 1:
+        flash('Plan name, a positive price and a duration of at least 1 day are required.', 'danger')
         return redirect(url_for('admin_panel'))
 
     plan = MembershipPlan(
@@ -811,10 +897,17 @@ def admin_edit_membership_plan(plan_id):
         flash('Plan not found.', 'danger')
         return redirect(url_for('admin_panel'))
 
-    plan.name = request.form.get('name', plan.name).strip()
-    plan.price = request.form.get('price', plan.price, type=float)
-    plan.duration_days = request.form.get('duration_days', plan.duration_days, type=int)
-    plan.features = request.form.get('features', plan.features).strip()
+    name = request.form.get('name', plan.name).strip()
+    price = request.form.get('price', plan.price, type=float)
+    duration_days = request.form.get('duration_days', plan.duration_days, type=int)
+    if not name or price is None or price <= 0 or not duration_days or duration_days < 1:
+        flash('Plan name, a positive price and a duration of at least 1 day are required.', 'danger')
+        return redirect(url_for('admin_panel'))
+
+    plan.name = name
+    plan.price = price
+    plan.duration_days = duration_days
+    plan.features = request.form.get('features', plan.features or '').strip()
 
     db.session.commit()
     flash(f'Membership Tier "{plan.name}" updated successfully!', 'success')
@@ -827,6 +920,10 @@ def admin_edit_membership_plan(plan_id):
 def admin_delete_membership_plan(plan_id):
     plan = db.session.get(MembershipPlan, plan_id)
     if plan:
+        members_on_plan = UserMembership.query.filter_by(plan_id=plan.id).count()
+        if members_on_plan:
+            flash(f'"{plan.name}" cannot be deleted: {members_on_plan} membership record(s) use it. Edit its price or features instead.', 'danger')
+            return redirect(url_for('admin_panel'))
         db.session.delete(plan)
         db.session.commit()
         flash('Membership tier deleted.', 'info')
@@ -858,6 +955,10 @@ def admin_create_class():
 
     if not title or not trainer_id or not start_time_str:
         flash('All class fields are required.', 'danger')
+        return redirect(url_for('admin_panel'))
+
+    if not duration_mins or duration_mins < 1 or not max_capacity or max_capacity < 1:
+        flash('Duration and capacity must be at least 1.', 'danger')
         return redirect(url_for('admin_panel'))
 
     try:
@@ -898,8 +999,14 @@ def admin_edit_class(class_id):
             gym_class.start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
         except ValueError:
             pass
-    gym_class.duration_mins = request.form.get('duration_mins', gym_class.duration_mins, type=int)
-    gym_class.max_capacity = request.form.get('max_capacity', gym_class.max_capacity, type=int)
+    duration_mins = request.form.get('duration_mins', gym_class.duration_mins, type=int)
+    max_capacity = request.form.get('max_capacity', gym_class.max_capacity, type=int)
+    if not duration_mins or duration_mins < 1 or not max_capacity or max_capacity < 1:
+        db.session.rollback()
+        flash('Duration and capacity must be at least 1.', 'danger')
+        return redirect(url_for('admin_panel'))
+    gym_class.duration_mins = duration_mins
+    gym_class.max_capacity = max_capacity
 
     db.session.commit()
     flash(f'Class "{gym_class.title}" updated successfully!', 'success')
@@ -935,6 +1042,10 @@ def admin_create_video():
         flash('Title and Video URL are required.', 'danger')
         return redirect(url_for('admin_panel'))
 
+    if not is_http_url(video_url) or (thumbnail_url and not is_http_url(thumbnail_url)):
+        flash('Video and thumbnail links must be full http:// or https:// URLs.', 'danger')
+        return redirect(url_for('admin_panel'))
+
     video = ExerciseVideo(
         title=title,
         category=category,
@@ -942,7 +1053,7 @@ def admin_create_video():
         video_url=video_url,
         thumbnail_url=thumbnail_url or "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500",
         description=description,
-        created_at=datetime.utcnow()
+        created_at=local_now()
     )
     db.session.add(video)
     db.session.commit()
@@ -959,12 +1070,18 @@ def admin_edit_video(video_id):
         flash('Video not found.', 'danger')
         return redirect(url_for('admin_panel'))
 
+    video_url = request.form.get('video_url', video.video_url).strip()
+    thumbnail_url = request.form.get('thumbnail_url', video.thumbnail_url or '').strip()
+    if not is_http_url(video_url) or (thumbnail_url and not is_http_url(thumbnail_url)):
+        flash('Video and thumbnail links must be full http:// or https:// URLs.', 'danger')
+        return redirect(url_for('admin_panel'))
+
     video.title = request.form.get('title', video.title).strip()
     video.category = request.form.get('category', video.category).strip()
     video.difficulty = request.form.get('difficulty', video.difficulty).strip()
-    video.video_url = request.form.get('video_url', video.video_url).strip()
-    video.thumbnail_url = request.form.get('thumbnail_url', video.thumbnail_url).strip()
-    video.description = request.form.get('description', video.description).strip()
+    video.video_url = video_url
+    video.thumbnail_url = thumbnail_url or video.thumbnail_url
+    video.description = request.form.get('description', video.description or '').strip()
 
     db.session.commit()
     flash(f'Video "{video.title}" updated!', 'success')
@@ -1005,6 +1122,10 @@ def trainer_create_class():
         flash('Class Title, Start Time, and Trainer are required.', 'danger')
         return redirect(url_for('schedule'))
 
+    if not duration_mins or duration_mins < 1 or not max_capacity or max_capacity < 1:
+        flash('Duration and capacity must be at least 1.', 'danger')
+        return redirect(url_for('schedule'))
+
     try:
         start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
     except ValueError:
@@ -1043,6 +1164,10 @@ def trainer_create_video():
         flash('Tutorial title and video link from the internet are required.', 'danger')
         return redirect(url_for('videos'))
 
+    if not is_http_url(video_url) or (thumbnail_url and not is_http_url(thumbnail_url)):
+        flash('Video and thumbnail links must be full http:// or https:// URLs.', 'danger')
+        return redirect(url_for('videos'))
+
     v_id = None
     if 'watch?v=' in video_url:
         v_id = video_url.split('watch?v=')[1].split('&')[0]
@@ -1068,7 +1193,7 @@ def trainer_create_video():
         video_url=video_url,
         thumbnail_url=thumbnail_url,
         description=description,
-        created_at=datetime.utcnow()
+        created_at=local_now()
     )
     db.session.add(video)
     db.session.commit()
@@ -1093,6 +1218,10 @@ def admin_create_meal_plan():
         flash('Meal Plan Title is required.', 'danger')
         return redirect(url_for('admin_panel'))
 
+    if not valid_macros(calories_per_day, protein_g, carbs_g, fat_g):
+        flash('Calories must be at least 1 and macros cannot be negative.', 'danger')
+        return redirect(url_for('admin_panel'))
+
     mp = MealPlan(
         title=title,
         goal=goal,
@@ -1103,7 +1232,7 @@ def admin_create_meal_plan():
         description=description,
         meal_breakdown=meal_breakdown,
         pdf_url="#",
-        created_at=datetime.utcnow()
+        created_at=local_now()
     )
     db.session.add(mp)
     db.session.commit()
@@ -1120,12 +1249,20 @@ def admin_edit_meal_plan(plan_id):
         flash('Meal plan not found.', 'danger')
         return redirect(url_for('admin_panel'))
 
+    calories_per_day = request.form.get('calories_per_day', mp.calories_per_day, type=int)
+    protein_g = request.form.get('protein_g', mp.protein_g, type=int)
+    carbs_g = request.form.get('carbs_g', mp.carbs_g, type=int)
+    fat_g = request.form.get('fat_g', mp.fat_g, type=int)
+    if not valid_macros(calories_per_day, protein_g, carbs_g, fat_g):
+        flash('Calories must be at least 1 and macros cannot be negative.', 'danger')
+        return redirect(url_for('admin_panel'))
+
     mp.title = request.form.get('title', mp.title).strip()
     mp.goal = request.form.get('goal', mp.goal).strip()
-    mp.calories_per_day = request.form.get('calories_per_day', mp.calories_per_day, type=int)
-    mp.protein_g = request.form.get('protein_g', mp.protein_g, type=int)
-    mp.carbs_g = request.form.get('carbs_g', mp.carbs_g, type=int)
-    mp.fat_g = request.form.get('fat_g', mp.fat_g, type=int)
+    mp.calories_per_day = calories_per_day
+    mp.protein_g = protein_g
+    mp.carbs_g = carbs_g
+    mp.fat_g = fat_g
     mp.description = request.form.get('description', mp.description).strip()
     mp.meal_breakdown = request.form.get('meal_breakdown', mp.meal_breakdown).strip()
 
@@ -1166,6 +1303,10 @@ def trainer_create_meal_plan():
         flash('Nutrition Blueprint Title is required.', 'danger')
         return redirect(url_for('nutrition'))
 
+    if not valid_macros(calories_per_day, protein_g, carbs_g, fat_g):
+        flash('Calories must be at least 1 and macros cannot be negative.', 'danger')
+        return redirect(url_for('nutrition'))
+
     mp = MealPlan(
         title=title,
         goal=goal,
@@ -1176,7 +1317,7 @@ def trainer_create_meal_plan():
         description=description,
         meal_breakdown=meal_breakdown,
         pdf_url="#",
-        created_at=datetime.utcnow()
+        created_at=local_now()
     )
     db.session.add(mp)
     db.session.commit()
@@ -1289,7 +1430,8 @@ def mark_attendance():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
+        if not User.query.first():
+            print("The database is empty. Run `python seed_db.py` to load the demo accounts and data.")
     port = int(os.environ.get('PORT', 5000))
-    print(f"\n🚀 FlexFit App is running at: http://127.0.0.1:{port}\n")
-    app.run(debug=True, host='127.0.0.1', port=port)
+    print(f"\nFlexFit App is running at: http://127.0.0.1:{port}\n")
+    app.run(debug=os.environ.get('FLASK_DEBUG', '1') == '1', host='127.0.0.1', port=port)

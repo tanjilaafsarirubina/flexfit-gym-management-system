@@ -318,7 +318,7 @@
                                     <i class="bi bi-check-circle-fill me-1"></i> Reviewed
                                 </button>
                             {% elif has_attended %}
-                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="openClassReviewModal({{ gym_class.id }}, '{{ gym_class.title }}')" title="Leave a review for this attended class">
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick='openClassReviewModal({{ gym_class.id }}, {{ gym_class.title|tojson }})' title="Leave a review for this attended class">
                                     <i class="bi bi-star-fill me-1"></i> Review
                                 </button>
                             {% endif %}
@@ -413,7 +413,7 @@ async function submitClassReview(e) {
     try {
         const res = await fetch('/api/submit_feedback', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ class_id: parseInt(classId), rating: parseInt(rating), review_text: reviewText })
         });
         const data = await res.json();

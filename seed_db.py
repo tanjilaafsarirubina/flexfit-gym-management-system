@@ -4,7 +4,7 @@ from app import app, db
 from gym_models import (
     User, TrainerProfile, MembershipPlan, UserMembership,
     GymClass, ClassBooking, WorkoutLog, ExerciseVideo, MealPlan,
-    Feedback, CoachingSession
+    Feedback, CoachingSession, Payment, local_now, local_today
 )
 
 def seed_database():
@@ -118,7 +118,7 @@ def seed_database():
         db.session.add_all([profile_sarah, profile_tanvir, profile_farhan])
         db.session.commit()
 
-        today = datetime.utcnow().date()
+        today = local_today()
         m1_plan = UserMembership(
             user_id=member1.id,
             plan_id=annual.id,
@@ -141,9 +141,17 @@ def seed_database():
             status="active"
         )
         db.session.add_all([m1_plan, m2_plan, m3_plan])
+        db.session.add_all([
+            Payment(user_id=member1.id, plan_name=annual.name, amount=annual.price, method="card",
+                    transaction_id="VISA48213377", paid_at=local_now() - timedelta(days=60)),
+            Payment(user_id=member2.id, plan_name=quarterly.name, amount=quarterly.price, method="bkash",
+                    transaction_id="BKASH51730284", paid_at=local_now() - timedelta(days=15)),
+            Payment(user_id=member3.id, plan_name=monthly.name, amount=monthly.price, method="nagad",
+                    transaction_id="NAGAD90417652", paid_at=local_now() - timedelta(days=5)),
+        ])
         db.session.commit()
 
-        now = datetime.utcnow()
+        now = local_now()
 
         class_yoga1 = GymClass(
             trainer_id=profile_sarah.id,
@@ -364,35 +372,35 @@ def seed_database():
             trainer_id=profile_sarah.id,
             rating=5,
             review_text="Sarah is an exceptional coach! Her cueing in Power Yoga has transformed my core strength and hamstring flexibility completely.",
-            created_at=datetime.utcnow() - timedelta(days=4)
+            created_at=local_now() - timedelta(days=4)
         )
         fb2 = Feedback(
             user_id=member2.id,
             trainer_id=profile_tanvir.id,
             rating=5,
             review_text="Tanvir's strength programming is world class. Added 20kg to my deadlift in under 2 months with zero injuries.",
-            created_at=datetime.utcnow() - timedelta(days=2)
+            created_at=local_now() - timedelta(days=2)
         )
         fb3 = Feedback(
             user_id=member3.id,
             trainer_id=profile_farhan.id,
             rating=5,
             review_text="Farhan brings unmatched energy to HIIT classes. The music, intensity, and motivation keep you pushing until the final rep!",
-            created_at=datetime.utcnow() - timedelta(days=1)
+            created_at=local_now() - timedelta(days=1)
         )
         fb4 = Feedback(
             user_id=member1.id,
             class_id=class_yoga1.id,
             rating=5,
             review_text="Power Yoga Flow is the best evening workout in the city. Clean studio, great atmosphere, and wonderful pacing.",
-            created_at=datetime.utcnow() - timedelta(days=3)
+            created_at=local_now() - timedelta(days=3)
         )
         fb5 = Feedback(
             user_id=member2.id,
             class_id=class_strength1.id,
             rating=4,
             review_text="High intensity strength pushes your limits. Great coaching on proper barbell form.",
-            created_at=datetime.utcnow() - timedelta(days=1)
+            created_at=local_now() - timedelta(days=1)
         )
         db.session.add_all([fb1, fb2, fb3, fb4, fb5])
 

@@ -2,6 +2,15 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('FlexFit JS Initialized');
 });
 
+// Every POST needs the CSRF token that base.html puts in <meta name="csrf-token">.
+function jsonHeaders() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': meta ? meta.content : ''
+    };
+}
+
 function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
@@ -12,15 +21,15 @@ function showToast(message, type = 'success') {
     const toastHTML = `
         <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0 show shadow" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
-                <div class="toast-body font-weight-bold">
-                    ${message}
-                </div>
+                <div class="toast-body font-weight-bold"></div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
     `;
     
     toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    // Messages can contain class titles and other user-entered text, so never parse them as HTML.
+    document.querySelector(`#${toastId} .toast-body`).textContent = message;
 
     setTimeout(() => {
         const el = document.getElementById(toastId);
@@ -38,9 +47,7 @@ async function handleBookingAction(classId, action, btnElement) {
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: jsonHeaders(),
             body: JSON.stringify({ class_id: classId })
         });
 

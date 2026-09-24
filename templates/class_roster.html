@@ -82,7 +82,7 @@ async function toggleAttendance(bookingId, setAttended) {
     try {
         const response = await fetch('/api/mark_attendance', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: jsonHeaders(),
             body: JSON.stringify({ booking_id: bookingId, attended: setAttended })
         });
         const data = await response.json();
