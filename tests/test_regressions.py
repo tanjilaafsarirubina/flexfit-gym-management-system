@@ -1,6 +1,7 @@
 """Regression tests for bugs fixed after the CSE391 submission (see README "Changes after grading")."""
 import html
 import json
+import os
 import re
 import unittest
 from datetime import datetime, timedelta
@@ -55,9 +56,10 @@ class AppTestCase(unittest.TestCase):
 
 
 class RegressionTests(AppTestCase):
-    def test_suite_uses_in_memory_database(self):
+    def test_suite_never_uses_the_dev_database(self):
         # Before the fix the tests ran against flexfit.db and dropped every table in tearDown.
-        self.assertEqual(app.config['SQLALCHEMY_DATABASE_URI'], 'sqlite://')
+        self.assertNotIn('flexfit.db', app.config['SQLALCHEMY_DATABASE_URI'])
+        self.assertEqual(app.config['SQLALCHEMY_DATABASE_URI'], os.environ.get('TEST_DATABASE_URL', 'sqlite://'))
 
     def test_staff_signup_disabled_without_invite_codes(self):
         # The old codes were hard-coded in this public repo, so anyone could register as admin.

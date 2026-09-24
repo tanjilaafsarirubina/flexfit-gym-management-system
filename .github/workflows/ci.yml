@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python }}, SQLite)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit and regression tests
+        run: python -W error::DeprecationWarning -m unittest discover -s tests -t . -v
+      - name: Seed script runs
+        run: DATABASE_URL=sqlite:///ci-seed.db python seed_db.py
+
+  mysql:
+    name: Tests (MySQL 8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+      - run: pip install -r requirements.txt
+      # The runner ships MySQL 8 with root/root; the app reaches it through PyMySQL.
+      - name: Start MySQL
+        run: |
+          sudo systemctl start mysql.service
+          mysql -uroot -proot -e "CREATE DATABASE flexfit_test CHARACTER SET utf8mb4"
+      - name: Unit and regression tests
+        env:
+          TEST_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1/flexfit_test
+        run: python -m unittest discover -s tests -t . -v
+
+  browser:
+    name: Browser smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+      - run: pip install -r requirements.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python tests/e2e_smoke.py

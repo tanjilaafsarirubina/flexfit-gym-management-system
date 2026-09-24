@@ -15,37 +15,37 @@
 
     <div class="row g-3 mb-4">
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">Total Users</div>
                 <div class="stat-value text-info">{{ users|length }}</div>
             </div>
         </div>
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">Active Classes</div>
                 <div class="stat-value text-success">{{ classes|length }}</div>
             </div>
         </div>
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">Bookings</div>
                 <div class="stat-value text-warning">{{ bookings|length }}</div>
             </div>
         </div>
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">Video Tutorials</div>
                 <div class="stat-value text-primary">{{ videos|length }}</div>
             </div>
         </div>
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">1-on-1 Sessions</div>
                 <div class="stat-value text-info">{{ coaching_sessions|length }}</div>
             </div>
         </div>
         <div class="col-md-2 col-sm-4 col-6">
-            <div class="stat-card">
+            <div class="stat-card h-100">
                 <div class="stat-title">Gross Revenue</div>
                 <div class="stat-value text-emerald">${{ "{:,.0f}".format(total_revenue) }}</div>
                 <div class="text-muted small">{{ payment_count }} sandbox payments</div>

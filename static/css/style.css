@@ -335,6 +335,9 @@ h1, h2, h3, h4, h5, h6 {
 .table-custom {
   color: var(--text-main);
   vertical-align: middle;
+  /* Bootstrap 5.3 colours cells from --bs-table-color (near-black by default), not from .table-custom */
+  --bs-table-color: var(--text-muted);
+  --bs-table-bg: transparent;
 }
 
 .table-custom th {
