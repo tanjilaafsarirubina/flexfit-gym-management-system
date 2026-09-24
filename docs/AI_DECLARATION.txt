@@ -35,9 +35,9 @@ Date: August 24, 2026
 Briefly describe what you used AI for and how:
 
 AI was used solely as a debugging assistant and conceptual reference during local testing and development. 
-Specifically, AI helped identify and resolve minor runtime exceptions (such as SQLite database session loader edge cases, Windows PowerShell path formatting during local execution, and Leaflet marker boundary handling). 
+Specifically, AI helped identify and resolve minor runtime exceptions (such as SQLite database session loader edge cases and Windows PowerShell path formatting during local execution). 
 
-All original project ideas, architectural design, database relational schemas, backend business logic, payment simulator flows, frontend mapping integrations, and deployment executions were entirely conceived, authored, and implemented by Tanjila Afsari Rubina.
+All original project ideas, architectural design, database relational schemas, backend business logic, payment simulator flows, and deployment executions were entirely conceived, authored, and implemented by Tanjila Afsari Rubina.
 
 ------------------------------------------------------------
 4. AI-ASSISTED SECTIONS
@@ -45,7 +45,6 @@ All original project ideas, architectural design, database relational schemas, b
 List specific files/sections where AI helped significantly:
 
 File: app.py                 Section: Debugging database session initialization & user_loader exception handling
-File: static/js/main.js      Section: Troubleshooting Leaflet map route boundary fitting & GPS error handling
 File: seed_db.py                Section: Debugging mock relational database commit sequence
 
 ------------------------------------------------------------
@@ -59,6 +58,11 @@ I declare that:
 
 Signature: Tanjila Afsari Rubina
 Date: August 24, 2026
+
+Correction (September 24, 2026): the submitted declaration also mentioned
+Leaflet map / GPS handling in static/js/main.js and "frontend mapping
+integrations". FlexFit has no maps, so those three references were removed.
+Nothing else was changed. The declaration as submitted is in commit 9eb55c2.
 
 ============================================================
 Save as: docs/AI_Declaration.txt

@@ -119,7 +119,7 @@ These changes were made after the course was graded. Each item under **Security*
 
 Smaller fixes, not covered by tests: the Rocket field was capped at 11 characters although Rocket numbers have 12; the coaching form's default time was in UTC; unstyled table text was nearly black on the dark theme; deprecated `datetime.utcnow()` calls were replaced.
 
-These post-submission changes were made with help from an AI coding assistant (Claude Code). The original [AI usage declaration](docs/AI_DECLARATION.txt) covers the graded submission only.
+These post-submission changes were made with help from an AI coding assistant (Claude Code). The original [AI usage declaration](docs/AI_DECLARATION.txt) covers the graded submission only. Its one later edit removed mentions of map code that this project doesn't have, and is explained at the bottom of the file.
 
 ## Limitations
 
